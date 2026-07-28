@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3327f8346189b4420ba0ad66ffbdbc2f, type: 3}
+  m_Name: Fruit_08_Dragonfruit
+  m_EditorClassIdentifier: 
+  tier: 8
+  displayName: Dragonfruit
+  sprite: {fileID: 6159277132994606817, guid: 10ea675eeb6b540f29c4216679fc492a, type: 3}
+  scale: 2.15
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  mass: 6.5
+  score: 45
+  nextTier: {fileID: 11400000, guid: 663a5f414426447638c03d100c647e3a, type: 2}
+  countForGameOver: 1
+  mergeSfx: {fileID: 0}

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4f8876d66b9f49958bad19ba0813c4d, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: 
+  dropCooldown: 0.45
+  inputBufferTime: 0.25
+  dropMinX: -2.2
+  dropMaxX: 2.2
+  dropY: 4.2
+  gameOverDelay: 2
+  dropGracePeriod: 1
+  setVelocityThreshold: 0.3
+  gameOverCheckInterval: 0.1
+  continuousExitSpeed: 0.5
+  continuousEnterFrames: 5
+  bagCopiesPerFruit: 2
+  comboWindow: 1.2
+  comboMultiplierStep: 0.25
+  popDuration: 0.15
+  popOverShot: 1.12
+  popStartScale: 0.7
+  sfxRetriggerGuard: 0.06
+  audioSourceCount: 6
