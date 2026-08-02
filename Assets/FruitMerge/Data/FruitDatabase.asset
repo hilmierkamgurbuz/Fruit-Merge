@@ -24,4 +24,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5c60decfa53664f69941dc5bebb6885d, type: 2}
   - {fileID: 11400000, guid: 663a5f414426447638c03d100c647e3a, type: 2}
   - {fileID: 11400000, guid: a13d44e744b1a4aaabdc053cf5404e63, type: 2}
-  spawnableCount: 1
+  spawnableCount: 5

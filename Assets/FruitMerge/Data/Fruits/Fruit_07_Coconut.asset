@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 7
   displayName: Coconut
   sprite: {fileID: 5091927538130925530, guid: 4c4ad0b133de44a83a4856d2fdb781ea, type: 3}
-  scale: 1.9
+  scale: 1.8668
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.618, g: 0.279, b: 0.135, a: 1}
   mass: 5.2
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 36
   nextTier: {fileID: 11400000, guid: 5c60decfa53664f69941dc5bebb6885d, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 3
+  faceOffset: {x: 0, y: 0}

@@ -12,22 +12,116 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4f8876d66b9f49958bad19ba0813c4d, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  dropCooldown: 0.45
+  dropJitterX: 0.04
+  dropSpin: 30
+  dropCooldown: 0.6
   inputBufferTime: 0.25
-  dropMinX: -2.2
-  dropMaxX: 2.2
-  dropY: 4.2
-  gameOverDelay: 2
+  wallInnerX: 3.08
+  dropEdgePadding: 0.02
+  dropY: 3.8
+  dropperTwigTipY: 0.25
+  dropIndicatorSkin: 0.02
+  pendingSpawnPadding: 0.15
+  pendingSpawnMaxWait: 0.5
+  gameOverDelay: 3
   dropGracePeriod: 1
-  setVelocityThreshold: 0.3
+  settleVelocityThreshold: 0.3
   gameOverCheckInterval: 0.1
   continuousExitSpeed: 0.5
+  continuousExitFrames: 5
   continuousEnterFrames: 5
+  continuousRearmSpeed: 4
+  spinSettleRate: 180
   bagCopiesPerFruit: 2
   comboWindow: 1.2
   comboMultiplierStep: 0.25
+  comboPopupMinCombo: 2
+  comboPopupLifetime: 0.9
+  comboPopupHoldRatio: 0.55
+  comboPopupTiltMin: 10
+  comboPopupTiltMax: 20
+  comboPopupRiseDistance: 0.45
+  comboTierMidMin: 4
+  comboTierHighMin: 7
+  comboTierLegendaryMin: 10
+  comboPopupTierScaleStep: 0.3
+  comboPopupTierOffsetY: 0.6
+  comboPopupTierLifetimeStep: 0.15
+  comboPopupWordScale: 0.55
+  comboPopupClampX: 2.9
+  comboPopupMaxY: 3.8
   popDuration: 0.15
   popOverShot: 1.12
   popStartScale: 0.7
+  squashMinImpactSpeed: 2
+  squashMaxImpactSpeed: 8
+  squashMinScale: 0.7
+  squashDuration: 0.2
+  squashOverShot: 1.12
   sfxRetriggerGuard: 0.06
   audioSourceCount: 6
+  mergeRetriggerGuard: 0.012
+  maxConcurrentEffects: 12
+  effectPrewarmCount: 16
+  faceMoodInterval: 0.1
+  faceMergeReactionTime: 2
+  faceCrowdReactionMinTier: 6
+  faceIdleToSleepy: 5
+  faceWorriedRatio: 0.85
+  faceScaredRatio: 1
+  faceDangerHysteresis: 0.03
+  faceLookRadius: 0.18
+  faceLookSpeed: 8
+  faceFallSpeedThreshold: 1.5
+  faceFallFollowTime: 1.2
+  faceTransitionDuration: 0.14
+  star1Score: 1000
+  star2Score: 2500
+  star3Score: 5000
+  starRevealDelay: 0.7
+  starRevealInterval: 0.35
+  starPunchDuration: 0.22
+  starPunchScale: 1.7
+  newRecordDelay: 0.3
+  dangerShowRatio: 0.75
+  dangerMinAlpha: 0.25
+  dangerMaxAlpha: 0.9
+  dangerBlinkHzMin: 0.6
+  dangerBlinkHzMax: 1.8
+  fruitChainDimAlpha: 0.55
+  screenBackgroundColor: {r: 0.9959, g: 0.9354, b: 0.705, a: 1}
+  splashMinDuration: 1.2
+  splashPrewarmPerFrame: 2
+  boostCrosshairSpinSpeed: -90
+  boostCrosshairScale: 0.9
+  boostCrosshairFade: 0.15
+  boostPulseDuration: 0.4
+  boostPulseScale: 1.15
+  wormSegmentCount: 5
+  wormSizeFactor: 0.55
+  wormSizeMin: 0.17
+  wormSizeMax: 0.4
+  wormSegmentSpacing: 0.62
+  wormWaveAmplitude: 0.3
+  wormWaveSpeed: 9
+  wormWavePhasePerSegment: 1.1
+  wormPathWobble: 0.12
+  wormSpawnMarginX: 1.2
+  wormLaneSpread: 0.55
+  wormSlotArcHalfAngle: 55
+  wormSortingOrder: 220
+  boostCursorSortingOrder: 112
+  wormApproachDuration: 2
+  wormEatDuration: 2
+  wormFruitVanishAt: 1
+  wormLeaveDuration: 1.5
+  eatSmokeRadiusFactor: 1.5
+  eatSmokeRate: 55
+  eatSmokeParticleSize: 1.25
+  eatSmokeLifetime: 0.8
+  eatSmokeMaxAlpha: 0.9
+  eatCrumbBursts: 7
+  eatCrumbIntensity: 0.45
+  eatFruitMinScale: 0.35
+  wormsScoreOnEat: 0
+  wormsChargesPerRun: 3

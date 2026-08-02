@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 5
   displayName: Green Apple
   sprite: {fileID: -8134147018285767237, guid: f336eae43d5ee4261aa75e61aa567502, type: 3}
-  scale: 1.4
+  scale: 1.5013
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.602, g: 0.824, b: 0.166, a: 1}
   mass: 3
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 21
   nextTier: {fileID: 11400000, guid: 4e31765f32db54d02aae5994367e4bc2, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 2
+  faceOffset: {x: 0, y: 0}

@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 1
   displayName: Blueberry
   sprite: {fileID: -3804197096517142816, guid: 8b59cdf0f948d4e7a9812865dabac2d8, type: 3}
-  scale: 0.6
+  scale: 0.6255
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.134, g: 0.292, b: 0.797, a: 1}
   mass: 0.8
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 3
   nextTier: {fileID: 11400000, guid: ceeb48e884fc3425e8fa76eaa0e07101, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 1
+  faceOffset: {x: 0, y: 0}

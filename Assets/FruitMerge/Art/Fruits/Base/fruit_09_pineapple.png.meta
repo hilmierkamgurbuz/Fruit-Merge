@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 512
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -142,10 +142,10 @@ TextureImporter:
       name: fruit_09_pineapple_0
       rect:
         serializedVersion: 2
-        x: 71
-        y: 0
-        width: 370
-        height: 512
+        x: 28
+        y: 11
+        width: 456
+        height: 490
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

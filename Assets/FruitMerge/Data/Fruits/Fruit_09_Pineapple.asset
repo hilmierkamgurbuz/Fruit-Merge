@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 9
   displayName: Pineapple
   sprite: {fileID: 2361483399021404246, guid: fe60a73c48f7d43fc82f2d782474efc7, type: 3}
-  scale: 2.45
+  scale: 2.3796
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.996, g: 0.767, b: 0, a: 1}
   mass: 8
+  colliderRadius: 0.4455
+  colliderOffset: {x: 0, y: -0.02}
   score: 55
   nextTier: {fileID: 11400000, guid: a13d44e744b1a4aaabdc053cf5404e63, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 3
+  faceOffset: {x: 0, y: 0}

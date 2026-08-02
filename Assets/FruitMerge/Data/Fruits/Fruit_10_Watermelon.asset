@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 10
   displayName: Watermelon
   sprite: {fileID: 316966665655519073, guid: a4bed0fb131aa41b29ddc8e78d1e8ff3, type: 3}
-  scale: 2.8
+  scale: 2.6688
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.242, g: 0.626, b: 0.074, a: 1}
   mass: 10
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 66
   nextTier: {fileID: 0}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 3
+  faceOffset: {x: 0, y: 0}

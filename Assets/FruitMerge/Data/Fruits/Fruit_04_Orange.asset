@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 4
   displayName: Orange
   sprite: {fileID: -2902768589516808347, guid: 8a48a68c7f49a4050adc9fb2b56892e3, type: 3}
-  scale: 1.15
+  scale: 1.1498
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.997, g: 0.505, b: 0, a: 1}
   mass: 2.3
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 15
   nextTier: {fileID: 11400000, guid: 1fc42be2f724d4cc7a53dfb2f48ea879, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 2
+  faceOffset: {x: 0, y: 0}

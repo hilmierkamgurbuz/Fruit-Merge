@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 2
   displayName: Lime
   sprite: {fileID: -1357514564565268812, guid: 29aee332c8910449fa7477835dd0f04c, type: 3}
-  scale: 0.78
+  scale: 0.7382
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.876, g: 0.894, b: 0.043, a: 1}
   mass: 1.2
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.03}
   score: 6
   nextTier: {fileID: 11400000, guid: aacddd566b88a48f5a1cd0259175019e, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 1
+  faceOffset: {x: 0, y: 0}

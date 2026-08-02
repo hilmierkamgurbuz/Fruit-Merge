@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 0
   displayName: Cherry
   sprite: {fileID: 3716547701233564103, guid: 8a9f050cf81a342bca960ffd936c0d09, type: 3}
-  scale: 0.45
+  scale: 0.4186
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 0.909, g: 0, b: 0.241, a: 1}
   mass: 0.5
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
   score: 1
   nextTier: {fileID: 11400000, guid: e837a8549ec1a4d0492f6b1eca61b626, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 0
+  faceOffset: {x: 0, y: 0}

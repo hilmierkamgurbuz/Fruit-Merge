@@ -15,10 +15,15 @@ MonoBehaviour:
   tier: 6
   displayName: Peach
   sprite: {fileID: -7086089763980995823, guid: 6d26ceb74bac94a97969deb66e237f6c, type: 3}
-  scale: 1.65
+  scale: 1.6852
   tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 1, g: 0.24, b: 0.407, a: 1}
   mass: 4
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0}
   score: 28
   nextTier: {fileID: 11400000, guid: 8ae765b9337694349b4d0dddb439e766, type: 2}
   countForGameOver: 1
-  mergeSfx: {fileID: 0}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 2
+  faceOffset: {x: 0, y: 0}
