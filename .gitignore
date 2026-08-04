@@ -105,3 +105,10 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Local planning / analysis notes (not for the repo, keep README.md tracked)
+/ARCHITECTURE.md
+/fruit-merge-kod-inceleme-raporu.md
+/plan.md
+/plan_boost_quake.md
+/plan_boost_worms.md
