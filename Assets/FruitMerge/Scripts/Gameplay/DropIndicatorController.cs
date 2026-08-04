@@ -11,10 +11,30 @@ public class DropIndicatorController : MonoBehaviour
     float _fruitBottomWorldY;
     bool _hasPending;
 
+    /// <summary>
+    /// Zeminin üst yüzeyi. <c>Collider2D.bounds</c> native bir çağrı ve zemin hiç hareket
+    /// etmiyor — <c>GameOverDetector.FloorY</c> ve <c>QuakeBoostDirector.Start</c> ile aynı
+    /// desen. Eskiden her karede yeniden okunuyordu.
+    /// </summary>
+    float _floorY;
+
     void Awake()
     {
         _renderer = GetComponent<SpriteRenderer>();
         _mpb = new MaterialPropertyBlock();
+    }
+
+    void Start()
+    {
+        _floorY = _floor != null ? _floor.bounds.max.y : transform.position.y - 5f;
+
+        if (_floor == null)
+            Debug.LogWarning("DropIndicatorController: _floor bağlı değil — gösterge " +
+                             "zemine kadar uzamayacak. Wall_Bottom'ın collider'ını bağla.", this);
+
+        if (_config == null)
+            Debug.LogError("DropIndicatorController: GameConfig bağlı değil, bileşen " +
+                           "kapatılıyor.", this);
     }
 
     /// <param name="fruitBottomWorldY">
@@ -40,17 +60,21 @@ public class DropIndicatorController : MonoBehaviour
     void Update()
     {
         bool playing = GameManager.Instance != null && GameManager.Instance.IsPlaying;
-        _renderer.enabled = playing && _hasPending;
-        if (!playing || !_hasPending) return;
+
+        bool visible = playing && _hasPending;
+
+        // enabled setter'ı native bir çağrı: yalnızca durum DEĞİŞTİYSE yaz (kural 9).
+        if (_renderer.enabled != visible) _renderer.enabled = visible;
+
+        if (!visible || _config == null) return;
 
         float topWorldY = _fruitBottomWorldY - _config.dropIndicatorSkin;
         Vector2 origin = new Vector2(transform.position.x, topWorldY);
 
-        float floorY = _floor.bounds.max.y;
-        float maxDist = Mathf.Max(0.01f, topWorldY - floorY + 1f);
+        float maxDist = Mathf.Max(0.01f, topWorldY - _floorY + 1f);
 
         RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, maxDist, _mask);
-        float endWorldY = hit.collider != null ? hit.point.y : floorY;
+        float endWorldY = hit.collider != null ? hit.point.y : _floorY;
 
         float span = Mathf.Max(0.05f, topWorldY - endWorldY);
         Vector2 size = _renderer.size;

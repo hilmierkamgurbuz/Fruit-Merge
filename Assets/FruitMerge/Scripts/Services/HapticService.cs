@@ -416,6 +416,23 @@ public class HapticService : MonoBehaviour
         HapticDevice.Cancel();
     }
 
+    /// <summary>
+    /// Deprem treni pause'dan sonra kaldığı yerden devam etsin.
+    ///
+    /// <see cref="HandleStateChanged"/> pause'da bütün sürekli kanalları kapatıyor (doğru:
+    /// bu servis <c>unscaledDeltaTime</c> ile döndüğü için pause'da titremeye devam
+    /// ederdi). Ama deprem pause'da artık İPTAL EDİLMİYOR, donuyor — dolayısıyla dönüşte
+    /// trenin yeniden açılması gerekiyor. Şiddeti zarftan gelmeye devam ediyor
+    /// (<see cref="SetQuakeLevel"/>).
+    /// </summary>
+    public void ResumeQuake()
+    {
+        if (_quakeActive || _config == null || _config.hapticQuakeMaxIntensity <= 0f) return;
+
+        _quakeActive     = true;
+        _quakePulseTimer = 0f;
+    }
+
     // -------------------------------------------------------------------- döngü
 
     void Update()
@@ -554,7 +571,12 @@ public class HapticService : MonoBehaviour
 #if UNITY_EDITOR
         // Editör'de motor yok — titreşimi HİSSEDEMEZSİN. Kancanın doğru yerde ve doğru
         // şiddette tetiklendiği ancak buradan görülüyor. Cihaz derlemesinde hiç derlenmez.
-        if (_config != null && _config.hapticEditorLog)
+        //
+        // Süreklilik TRENLERİ günlüğe girmiyor: deprem saniyede ~14, kemirme ~9 darbe
+        // üretiyor ve hepsi aynı satırı basıyor. Doğrulanacak bir şey söylemedikleri gibi
+        // Profiler'ın GC Alloc grafiğinde oyun kodunun üretmediği bir sivrilme oluşturup
+        // boost ölçümlerini yanlış okumaya sebep oluyorlardı.
+        if (_config != null && _config.hapticEditorLog && reason != "quake" && reason != "chew")
             Debug.Log($"[Haptic] {reason ?? "pulse"} · şiddet {intensity01:0.00} · " +
                       $"{Mathf.RoundToInt(duration * 1000f)} ms");
 #endif

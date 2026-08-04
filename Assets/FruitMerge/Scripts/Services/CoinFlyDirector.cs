@@ -112,6 +112,9 @@ public class CoinFlyDirector : MonoBehaviour
 
     // ---------------------------------------------------------------- havuz
 
+    // NOT — havuz bilinçli olarak Awake'te, PrewarmQueue'da DEĞİL. Gerekçe
+    // WormBoostDirector.BuildCursors'ın üstünde yazıyor.
+
     void BuildPool()
     {
         int size = Mathf.Max(1, _poolSize);

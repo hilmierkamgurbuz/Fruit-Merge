@@ -248,6 +248,19 @@ public class FruitFace : MonoBehaviour
 
     // ------------------------------------------------------------------- bakış
 
+    /// <summary>
+    /// Bakış hedefine oturma eşiği (dünya birimi²). <c>Lerp</c> hedefe asimptotik
+    /// yaklaştığı için <c>_lookOffset</c> asla tam olarak <c>want</c>'a eşitlenmiyordu —
+    /// bakış hedefi olmayan, durgun bir yüz için bile her karede <c>localPosition</c>
+    /// yazılıyordu. 60 meyvede kare başına 60 gereksiz transform kirletme + bağlı
+    /// <c>SpriteRenderer</c> bounds güncellemesi demekti.
+    ///
+    /// Eşik <c>faceLookRadius</c>'un (0.18) on binde biri, yani alt-piksel mertebesinde;
+    /// gözle ayırt edilemiyor. Fark eşiğin üstüne çıktığı anda eski davranış birebir
+    /// geri geliyor.
+    /// </summary>
+    const float LookSnapSqr = 1e-8f;
+
     void TickLook(float dt)
     {
         Vector2 want = Vector2.zero;
@@ -266,6 +279,19 @@ public class FruitFace : MonoBehaviour
 
                 if (flat.sqrMagnitude > 0.0001f) want = flat.normalized * _lookRadius;
             }
+        }
+
+        // Zaten hedefte: transform'a hiç dokunma (bkz. LookSnapSqr).
+        if ((want - _lookOffset).sqrMagnitude <= LookSnapSqr)
+        {
+            if (_lookOffset != want)
+            {
+                _lookOffset = want;
+
+                transform.localPosition = _baseOffset + _lookOffset;
+            }
+
+            return;
         }
 
         _lookOffset = Vector2.Lerp(_lookOffset, want, Mathf.Clamp01(dt * _lookSpeed));

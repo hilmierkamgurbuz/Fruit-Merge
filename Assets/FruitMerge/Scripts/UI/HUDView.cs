@@ -77,7 +77,12 @@ public class HUDView : MonoBehaviour
         if (_scoreText != null) _scoreText.SetText("{0}", 0);
     }
 
-    void HandleHighScore(int hs) => _highScoreText.SetText("{0}", hs);
+    // Null kontrolü şart: rekor olayı SaveService.Start'ta yayınlanıyor, yani alan
+    // sahnede boş kalırsa açılışta NRE. _scoreText için zaten kontrol var, bunda yoktu.
+    void HandleHighScore(int hs)
+    {
+        if (_highScoreText != null) _highScoreText.SetText("{0}", hs);
+    }
 
     void HandleNextFruit(FruitDefinition def)
     {
@@ -91,7 +96,7 @@ public class HUDView : MonoBehaviour
 
     void Update()
     {
-        if (!Mathf.Approximately(_shownScore, _targetScore))
+        if (_scoreText != null && !Mathf.Approximately(_shownScore, _targetScore))
         {
             _shownScore = Mathf.MoveTowards(_shownScore, _targetScore, _countSpeed * Time.unscaledDeltaTime);
             _scoreText.SetText("{0}", Mathf.RoundToInt(_shownScore));

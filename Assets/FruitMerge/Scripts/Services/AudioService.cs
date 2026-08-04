@@ -113,7 +113,30 @@ public class AudioService : MonoBehaviour
     // ayarlardan gelen aç/kapa. Kapalıyken Play() hiç iş yapmadan döner.
     bool _sfxEnabled = true;
 
-    readonly Dictionary<AudioClip, float> _lastPlayTime = new Dictionary<AudioClip, float>(16);
+    /// <summary>
+    /// Referans kimliğiyle karşılaştıran comparer.
+    ///
+    /// Varsayılan <c>EqualityComparer&lt;AudioClip&gt;.Default</c>, <c>UnityEngine.Object</c>'in
+    /// override ettiği <c>Equals</c>/<c>GetHashCode</c>'una gidiyor — içinde "yok edilmiş
+    /// obje" kontrolü var ve managed↔native sınırına yakın çalışıyor. Bizim istediğimiz
+    /// şey zaten "aynı klip mi", yani saf referans eşitliği.
+    ///
+    /// .NET'in <c>ReferenceEqualityComparer</c>'ı .NET 5+ API'si, Unity'nin .NET Standard
+    /// 2.1 profilinde yok — bu yüzden üç satırla kendimiz yazıyoruz.
+    /// </summary>
+    sealed class ClipReferenceComparer : IEqualityComparer<AudioClip>
+    {
+        public static readonly ClipReferenceComparer Instance = new ClipReferenceComparer();
+
+        public bool Equals(AudioClip a, AudioClip b) => ReferenceEquals(a, b);
+
+        public int GetHashCode(AudioClip clip) =>
+            System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(clip);
+    }
+
+    /// <summary>Aynı klibin guard süresi içinde ikinci kez çalmasını engelleyen kayıtlar.</summary>
+    readonly Dictionary<AudioClip, float> _lastPlayTime =
+        new Dictionary<AudioClip, float>(16, ClipReferenceComparer.Instance);
 
     void Awake()
     {
@@ -339,7 +362,42 @@ public class AudioService : MonoBehaviour
 
         _rumbleSource.volume = 0f;
 
+        _rumblePaused = false;
+
         if (_rumbleSource.isPlaying) _rumbleSource.Stop();
+    }
+
+    /// <summary>Gürültü pause'da sussun — <c>rumblePaused</c> ile sürdürülebilir kalıyor.</summary>
+    bool _rumblePaused;
+
+    /// <summary>
+    /// Oyun duraklatıldı: gürültüyü DURAKLAT (durdurma değil).
+    ///
+    /// Ses <c>timeScale</c>'e bağlı DEĞİL ve kanallar <c>ignoreListenerPause</c> ile
+    /// kuruluyor — yani pause'da hiçbir şey susmuyordu ve deprem gürültüsü pause paneli
+    /// açıkken sabit sesle uğuldamaya devam ediyordu. <c>Stop</c> değil <c>Pause</c>:
+    /// Continue ile kaldığı yerden devam ediyor, klip baştan başlamıyor.
+    /// </summary>
+    public void PauseQuakeRumble()
+    {
+        if (_rumbleSource == null || !_rumbleSource.isPlaying) return;
+
+        _rumbleSource.Pause();
+
+        _rumblePaused = true;
+    }
+
+    /// <summary>Pause'dan dönüş: gürültü kaldığı yerden devam eder.</summary>
+    public void ResumeQuakeRumble()
+    {
+        if (_rumbleSource == null || !_rumblePaused) return;
+
+        _rumblePaused = false;
+
+        // Ses ayarı pause sırasında kapatılmış olabilir.
+        if (!_sfxEnabled) return;
+
+        _rumbleSource.UnPause();
     }
 
     // Titreşim buradan taşındı: eski VibrateOnce() Handheld.Vibrate() çağırıyordu, yani

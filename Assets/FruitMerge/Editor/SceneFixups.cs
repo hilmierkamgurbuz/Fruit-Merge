@@ -1,7 +1,9 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 /// <summary>
 /// Sahnede elle yapılması gereken iki düzeltmeyi Unity'nin KENDİ API'siyle uygular.
@@ -32,7 +34,7 @@ public static class SceneFixups
     // Sürüm eki: bu oturumda bir önceki sürüm zaten çalışmış olabilir. Anahtarı
     // değiştirmek, güncellenmiş düzeltmelerin Unity'yi yeniden başlatmadan bir kez
     // daha uygulanmasını sağlıyor.
-    const string SessionKey = "FruitMerge.SceneFixups.Ran.v8";
+    const string SessionKey = "FruitMerge.SceneFixups.Ran.v10";
 
     /// <summary>
     /// Oturumda bir kez, sahne yüklendikten sonra çalışır. <see cref="SessionState"/>
@@ -106,7 +108,12 @@ public static class SceneFixups
                       + FixBoostSize(scene)
                       + FixGameOverDimmer(scene)
                       + FixBoardLayout(scene)
-                      + FixFruitPhysics();
+                      + FixFruitPhysics()
+                      + FixPanelSubCanvases(scene)
+                      + FixScoreSubCanvas(scene)
+                      + FixFruitTicker(scene)
+                      + FixRaycastTargets(scene)
+                      + FixAtlasCompression();
 
         if (changed == 0)
         {
@@ -703,6 +710,378 @@ public static class SceneFixups
         EditorUtility.SetDirty(dim);
 
         Debug.Log("SceneFixups: GameOverPanel/Dimmer tam ekran stretch'e çekildi.");
+
+        return 1;
+    }
+
+    // --------------------------------------- 8) panellere iç içe Canvas (overdraw)
+
+    /// <summary>
+    /// Panellerin köküne İÇ İÇE <c>Canvas</c> ekler. <see cref="UIPanel"/> panel kapanınca
+    /// <c>canvas.enabled = false</c> yapıyor.
+    ///
+    /// <b>Neden:</b> <c>CanvasGroup.alpha = 0</c> çizimi DURDURMUYOR — geometri yine
+    /// kuruluyor, GPU şeffaf dörtgenleri yine harmanlıyor. Oynanış sırasında dört panelin
+    /// dört TAM EKRAN Dimmer/Background'u + ~48 küçük graphic'i boşuna çiziliyordu ve
+    /// mobilde darboğaz neredeyse her zaman fill-rate.
+    ///
+    /// <b>Neden <c>SetActive(false)</c> değil:</b> GameObject aktif kalmalı, yoksa panel
+    /// <c>OnDisable</c>'da aboneliğini bırakır ve durum olayını bir daha duymaz.
+    /// </summary>
+    static readonly string[] PanelNames =
+    {
+        "MenuPanel", "PausePanel", "GameOverPanel", "BoostShopPanel", "SplashPanel"
+    };
+
+    static int FixPanelSubCanvases(Scene scene)
+    {
+        int changed = 0;
+
+        for (int i = 0; i < PanelNames.Length; i++)
+        {
+            Transform panel = FindDeep(scene, PanelNames[i]);
+
+            if (panel == null)
+            {
+                Debug.LogWarning($"SceneFixups: {PanelNames[i]} bulunamadı, alt canvas eklenemedi.");
+
+                continue;
+            }
+
+            // interactive: TRUE — paneller buton içeriyor, iç içe canvas'ın KENDİ
+            // GraphicRaycaster'ı olmak zorunda (bkz. EnsureSubCanvas).
+            changed += EnsureSubCanvas(panel.gameObject, true, PanelNames[i]);
+        }
+
+        return changed;
+    }
+
+    // ------------------------------------- 9) skor yazısına ayrı alt canvas
+
+    /// <summary>
+    /// <c>ScoreText</c>'e kendi <c>Canvas</c>'ını verir.
+    ///
+    /// <b>Neden:</b> HUDCanvas'ta skor yazısıyla birlikte 11 slotluk evrim zinciri
+    /// (23 graphic + HorizontalLayoutGroup) ve boost rozetleri duruyor — toplam ~34
+    /// CanvasRenderer. <c>HUDView</c> skoru saydığı sürece her karede <c>SetText</c>
+    /// çağırıyor ve TMP mesh'i değiştiği an ALT CANVAS'IN TAMAMI yeniden batch'leniyor.
+    /// Yani üç haneli bir sayının değişmesi, hiç değişmemiş 23 meyve ikonunun geometrisini
+    /// yeniden birleştirmeye sebep oluyordu.
+    ///
+    /// Yazıyı yeniden ebeveynlemek yerine Canvas'ı ONUN ÜSTÜNE koyuyoruz: RectTransform
+    /// zinciri, anchor'lar ve serialize edilmiş referanslar hiç değişmiyor.
+    ///
+    /// <c>HighScoreText</c> taşınmıyor — yalnızca rekor kırılınca değişiyor, ayrı canvas
+    /// maliyetine değmez.
+    /// </summary>
+    static int FixScoreSubCanvas(Scene scene)
+    {
+        Transform score = FindDeep(scene, "ScoreText");
+
+        if (score == null)
+        {
+            Debug.LogWarning("SceneFixups: ScoreText bulunamadı, alt canvas eklenemedi.");
+
+            return 0;
+        }
+
+        // interactive: FALSE — skor yazısı salt gösterim, raycastTarget'ı da kapatıldı
+        // (bkz. FixRaycastTargets), yani kendi raycaster'ına ihtiyacı yok.
+        return EnsureSubCanvas(score.gameObject, false, "ScoreText");
+    }
+
+    /// <summary>
+    /// Objeye iç içe bir <c>Canvas</c> (ve gerekiyorsa <c>GraphicRaycaster</c>) ekler.
+    ///
+    /// <b>⚠️ GraphicRaycaster ŞART — bu unutulduğunda paneldeki bütün butonlar ÖLÜYOR.</b>
+    /// Bir <c>Graphic</c> kendini EN YAKIN Canvas'a kaydediyor
+    /// (<c>GraphicRegistry.RegisterGraphicForCanvas</c>), <c>GraphicRaycaster</c> ise yalnızca
+    /// KENDİ canvas'ının graphic'lerini sınıyor. Yani bir panele iç içe Canvas eklemek,
+    /// panelin butonlarını üst canvas'ın raycaster'ının görüş alanından çıkarıyor.
+    /// Sahnedeki <c>MainCanvas</c> / <c>HUDCanvas</c> / <c>PanelCanvas</c> üçlüsünün
+    /// her birinde ayrı bir raycaster olmasının sebebi tam olarak bu.
+    ///
+    /// Varsayılan <c>GraphicRaycaster</c> değerleri sahnedeki mevcut üç raycaster'la birebir
+    /// aynı (<c>ignoreReversedGraphics</c> açık, <c>blockingObjects</c> None, maske tam),
+    /// o yüzden ayar kopyalamaya gerek yok.
+    ///
+    /// <c>additionalShaderChannels</c> en yakın üst Canvas'tan KOPYALANIYOR: TextMeshPro'nun
+    /// SDF shader'ı TexCoord1 + Normal + Tangent kanallarına ihtiyaç duyuyor ve yeni bir
+    /// Canvas bunları varsayılan olarak KAPALI getiriyor — kopyalanmazsa yazılar bozuk
+    /// çiziliyor. Sahnedeki üç alt canvas'ta bu değer 25.
+    ///
+    /// <b>Etkileşimli</b> alt canvas'larda <c>overrideSorting</c> AÇILIP üst canvas'ın
+    /// <c>sortingOrder</c>'ı devralınıyor — kapalı bırakmak sırayı 0'a düşürüyor ve
+    /// panelleri HUD'un arkasına atabiliyor (hem çizimde hem raycast'te). Salt gösterim
+    /// alt canvas'larında (skor yazısı) kapalı kalıyor: orada sıra hiyerarşiden gelmeli.
+    ///
+    /// Fikirsiz: üç ayar (Canvas, sıralama, raycaster) AYRI AYRI kontrol ediliyor, böylece
+    /// Canvas'ı zaten eklenmiş bir objeye sonradan eksikleri tamamlamak da çalışıyor.
+    /// </summary>
+    /// <returns>eklenen bileşen sayısı</returns>
+    static int EnsureSubCanvas(GameObject go, bool interactive, string label)
+    {
+        int changed = 0;
+
+        Canvas parent = go.transform.parent != null
+            ? go.transform.parent.GetComponentInParent<Canvas>()
+            : null;
+
+        Canvas canvas = go.GetComponent<Canvas>();
+
+        if (canvas == null)
+        {
+            canvas = Undo.AddComponent<Canvas>(go);
+
+            canvas.additionalShaderChannels =
+                parent != null && parent.additionalShaderChannels != AdditionalCanvasShaderChannels.None
+                    ? parent.additionalShaderChannels
+                    : AdditionalCanvasShaderChannels.TexCoord1
+                      | AdditionalCanvasShaderChannels.Normal
+                      | AdditionalCanvasShaderChannels.Tangent;
+
+            EditorUtility.SetDirty(canvas);
+
+            Debug.Log($"SceneFixups: {label}'a iç içe Canvas eklendi — kapalıyken tuvalden " +
+                      "tamamen çıkıyor (alpha 0 çizimi durdurmuyordu).");
+
+            changed++;
+        }
+
+        // ⚠️ SIRALAMAYI KORU. Etkileşimli alt canvas'ta overrideSorting KAPALI kalırsa
+        // sortingOrder 0 olarak okunuyor — hem çizimde hem RAYCAST'te. GraphicRaycaster'ın
+        // sortOrderPriority'si doğrudan canvas.sortingOrder'dan geliyor, yani PanelCanvas'ın
+        // 2'si kaybolup HUDCanvas'ın 0'ıyla eşitleniyor ve panel butonları HUD'un arkasına
+        // düşebiliyor. Üst canvas'ın sırasını devralarak eski öncelik birebir korunuyor.
+        if (interactive && parent != null &&
+            (!canvas.overrideSorting || canvas.sortingOrder != parent.sortingOrder))
+        {
+            Undo.RecordObject(canvas, "alt canvas sıralaması");
+
+            canvas.overrideSorting = true;
+            canvas.sortingOrder    = parent.sortingOrder;
+
+            EditorUtility.SetDirty(canvas);
+
+            Debug.Log($"SceneFixups: {label} alt canvas'ı sortingOrder {parent.sortingOrder} " +
+                      "olarak sabitlendi (üst canvas'ın sırası devralındı).");
+
+            changed++;
+        }
+
+        if (interactive && go.GetComponent<GraphicRaycaster>() == null)
+        {
+            Undo.AddComponent<GraphicRaycaster>(go);
+
+            Debug.Log($"SceneFixups: {label}'a GraphicRaycaster eklendi — iç içe canvas'ın " +
+                      "graphic'leri üst canvas'ın raycaster'ı tarafından görülmüyor, " +
+                      "bu olmadan paneldeki butonlar tıklanamıyor.");
+
+            changed++;
+        }
+
+        return changed;
+    }
+
+    // ------------------------------------------------- 10) FruitTicker
+
+    /// <summary>
+    /// Sahneye <see cref="FruitTicker"/> ekler — <see cref="FruitPool"/>'un objesine.
+    ///
+    /// <see cref="Fruit"/>'in kendi <c>Update</c>/<c>FixedUpdate</c>'i kaldırıldı (60 meyve
+    /// = kare başına 60, fizik adımı başına 60 managed↔native geçişi). Tick'i artık tek bir
+    /// döngü sürüyor; bu bileşen sahnede yoksa meyveler pop/squash animasyonunu ve
+    /// Continuous→Discrete geçişini HİÇ yapmaz, o yüzden eklenmesi zorunlu.
+    /// </summary>
+    static int FixFruitTicker(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.GetComponentInChildren<FruitTicker>(true) != null) return 0;
+
+        FruitPool pool = null;
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            pool = root.GetComponentInChildren<FruitPool>(true);
+
+            if (pool != null) break;
+        }
+
+        if (pool == null)
+        {
+            Debug.LogWarning("SceneFixups: FruitPool bulunamadı, FruitTicker eklenemedi — " +
+                             "meyvelerin pop/squash animasyonu çalışmaz!");
+
+            return 0;
+        }
+
+        Undo.AddComponent<FruitTicker>(pool.gameObject);
+
+        Debug.Log($"SceneFixups: {pool.name} objesine FruitTicker eklendi " +
+                  "(Fruit'in kendi Update/FixedUpdate'i kaldırıldı).");
+
+        return 1;
+    }
+
+    // --------------------------------------------- 11) gereksiz raycast target
+
+    /// <summary>
+    /// Tıklanması hiç gerekmeyen elemanlarda <c>Raycast Target</c>'ı kapatır.
+    ///
+    /// İki kural:
+    ///  1. <b>Buton İÇİNDEKİ</b> graphic'ler — butonun kendi <c>targetGraphic</c>'i
+    ///     tıklamayı zaten yakalıyor, çocuk yazı/ikonun ayrıca hedef olması her pointer
+    ///     olayında fazladan sınama demek.
+    ///  2. Salt gösterim <b>etiketleri</b> (skor, rekor, sonuç ekranı yazıları).
+    ///
+    /// <b>DOKUNULMAYANLAR</b> — bunlar davranışsal:
+    ///  - <c>HudPanel</c>: <see cref="DropController"/> <c>PointerInput.IsOverUI()</c> ile
+    ///    HUD'un üstündeki dokunuşu BİLEREK eliyor ("meyve görünmeyen bir yere
+    ///    bırakılmasın"). Kapatmak HUD alanına dokunulduğunda meyve düşürür.
+    ///  - Panellerin <c>Dimmer</c> / <c>Background</c> / <c>Box</c> görselleri: arkadaki
+    ///    tıklamayı yutmaları gerekiyor.
+    ///  - Butonların KENDİ görselleri.
+    /// </summary>
+    static readonly string[] DisplayOnlyLabels =
+    {
+        "ScoreText", "HighScoreText", "ScoreLabel", "ScoreCaption", "BestLabel", "BestCaption"
+    };
+
+    static int FixRaycastTargets(Scene scene)
+    {
+        int changed = 0;
+
+        // 1) buton içindeki graphic'ler
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            foreach (Button button in root.GetComponentsInChildren<Button>(true))
+            {
+                foreach (Graphic g in button.GetComponentsInChildren<Graphic>(true))
+                {
+                    // butonun KENDİ görseli ve hedef görseli hedef kalmalı
+                    if (g.gameObject == button.gameObject) continue;
+
+                    if (g == button.targetGraphic) continue;
+
+                    // araya başka bir buton girmişse (iç içe buton) ona karışma
+                    if (g.GetComponentInParent<Button>() != button) continue;
+
+                    if (!g.raycastTarget) continue;
+
+                    Undo.RecordObject(g, "raycastTarget kapat");
+
+                    g.raycastTarget = false;
+
+                    EditorUtility.SetDirty(g);
+
+                    Debug.Log($"SceneFixups: {button.name}/{g.name} raycastTarget kapatıldı " +
+                              "(butonun kendi görseli tıklamayı zaten yakalıyor).");
+
+                    changed++;
+                }
+            }
+        }
+
+        // 2) salt gösterim etiketleri
+        for (int i = 0; i < DisplayOnlyLabels.Length; i++)
+        {
+            Transform t = FindDeep(scene, DisplayOnlyLabels[i]);
+
+            var g = t != null ? t.GetComponent<Graphic>() : null;
+
+            if (g == null || !g.raycastTarget) continue;
+
+            Undo.RecordObject(g, "raycastTarget kapat");
+
+            g.raycastTarget = false;
+
+            EditorUtility.SetDirty(g);
+
+            Debug.Log($"SceneFixups: {DisplayOnlyLabels[i]} raycastTarget kapatıldı (salt gösterim).");
+
+            changed++;
+        }
+
+        return changed;
+    }
+
+    // ------------------------------------------ 12) atlas mobil sıkıştırması
+
+    /// <summary>
+    /// Sprite atlas'larına Android/iOS için <b>ASTC 4×4</b> override'ı koyar.
+    ///
+    /// <b>Sorun:</b> iki atlas da <c>textureCompression: 0</c> (Uncompressed) ile import
+    /// ediliyordu ve <c>platformSettings</c> boştu — yani çalışma anındaki atlas dokusu
+    /// piksel başına 4 bayt. FruitAtlas'ın kapsadığı alan (11 meyve gövdesi + 48 yüz
+    /// sprite'ı) 2048² sayfalara sığdığında ~2 sayfa, yani ~33 MB; UIAtlas da en az bir
+    /// sayfa (+16 MB). Bir merge oyunu için gereğinin kat kat üstü, ve aynı zamanda her
+    /// karede örneklenen bant genişliği.
+    ///
+    /// <b>Neden ASTC 4×4:</b> piksel başına 8 bit, alfa dahil — RGBA32'ye göre 4 kat
+    /// tasarruf, pratikte ayırt edilemeyecek kalite. Daha agresif olan 6×6, keskin kenarlı
+    /// düz renk alanlı bu çizim tarzında (özellikle yüzlerin ince çizgilerinde) blok
+    /// artefaktı gösterebiliyor — bilinçli olarak 4×4'te kalıyoruz.
+    ///
+    /// Mipmap KAPALI kalıyor (ortografik 2D'de gereksiz) ve maxTextureSize 2048'de kalıyor.
+    /// </summary>
+    static readonly string[] AtlasPaths =
+    {
+        "Assets/FruitMerge/Art/Fruits/FruitAtlas.spriteatlasv2",
+        "Assets/FruitMerge/Art/UI/UIAtlas.spriteatlasv2"
+    };
+
+    // iOS'un import platformu adı "iPhone" (BuildTarget.iOS değil).
+    static readonly string[] MobileTargets = { "Android", "iPhone" };
+
+    static int FixAtlasCompression()
+    {
+        int changed = 0;
+
+        for (int i = 0; i < AtlasPaths.Length; i++) changed += SetAtlasCompression(AtlasPaths[i]);
+
+        return changed;
+    }
+
+    static int SetAtlasCompression(string path)
+    {
+        var importer = AssetImporter.GetAtPath(path) as SpriteAtlasImporter;
+
+        if (importer == null)
+        {
+            Debug.LogWarning($"SceneFixups: {path} bir SpriteAtlasImporter değil (ya da yok) — atlandı.");
+
+            return 0;
+        }
+
+        int changed = 0;
+
+        for (int i = 0; i < MobileTargets.Length; i++)
+        {
+            TextureImporterPlatformSettings settings = importer.GetPlatformSettings(MobileTargets[i]);
+
+            bool ok = settings.overridden
+                      && settings.format == TextureImporterFormat.ASTC_4x4
+                      && settings.maxTextureSize == 2048;
+
+            if (ok) continue;
+
+            settings.overridden     = true;
+            settings.format         = TextureImporterFormat.ASTC_4x4;
+            settings.maxTextureSize = 2048;
+            settings.textureCompression = TextureImporterCompression.Compressed;
+            settings.compressionQuality = 50;
+
+            importer.SetPlatformSettings(settings);
+
+            changed++;
+        }
+
+        if (changed == 0) return 0;
+
+        importer.SaveAndReimport();
+
+        Debug.Log($"SceneFixups: {System.IO.Path.GetFileName(path)} → Android/iOS ASTC 4×4 " +
+                  "(eskiden Uncompressed RGBA32, ~4 kat doku belleği).");
 
         return 1;
     }

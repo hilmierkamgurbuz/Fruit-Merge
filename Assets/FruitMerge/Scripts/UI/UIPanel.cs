@@ -7,6 +7,25 @@ public abstract class UIPanel : MonoBehaviour
 
     protected CanvasGroup _group;
 
+    /// <summary>
+    /// Panel kökündeki İÇ İÇE Canvas. Panel kapandığında <c>enabled = false</c> yapılıyor.
+    ///
+    /// <b>Neden <c>SetActive(false)</c> değil:</b> GameObject aktif kalmalı, yoksa panel
+    /// <c>OnDisable</c>'da aboneliğini bırakır ve bir daha haber alamaz — durum olayıyla
+    /// açılan bir panel için bu "bir daha hiç açılmaz" demek. (Aynı kısıt
+    /// <see cref="CoinHudView"/> ve <see cref="BoostButton"/>'da da yazılı.)
+    ///
+    /// <b>Neden gerekli:</b> <c>CanvasGroup.alpha = 0</c> çizimi DURDURMUYOR, sadece
+    /// görünmez yapıyor — <c>CanvasRenderer</c> geometriyi yine kuruyor ve GPU şeffaf
+    /// dörtgenleri yine harmanlıyor. Oynanış sırasında dört panelin dört TAM EKRAN
+    /// Dimmer/Background'u + ~48 küçük graphic'i boşuna çiziliyordu; mobilde darboğaz
+    /// neredeyse her zaman fill-rate. <c>Canvas.enabled = false</c> alt ağacı tuvalden
+    /// tamamen çıkarıyor.
+    ///
+    /// Bileşen sahnede yoksa davranış eskisi gibi kalıyor (SceneFixups ekliyor).
+    /// </summary>
+    Canvas _canvas;
+
     float _target;
     bool  _animating;
 
@@ -23,7 +42,8 @@ public abstract class UIPanel : MonoBehaviour
 
     protected virtual void Awake()
     {
-        _group = GetComponent<CanvasGroup>();
+        _group  = GetComponent<CanvasGroup>();
+        _canvas = GetComponent<Canvas>();
         SetInstant(false);
     }
 
@@ -31,6 +51,10 @@ public abstract class UIPanel : MonoBehaviour
     {
         IsOpen = true;
         gameObject.SetActive(true);
+
+        // Fade'in İLK karesinden önce tuvale geri gir, yoksa panel bir kare gecikir.
+        if (_canvas != null) _canvas.enabled = true;
+
         _target = 1f;
         _animating = true;
 
@@ -62,6 +86,8 @@ public abstract class UIPanel : MonoBehaviour
         _group.alpha = open ? 1f : 0f;
         _group.interactable = open;
         _group.blocksRaycasts = open;
+
+        if (_canvas != null) _canvas.enabled = open;
     }
 
     void Update()
@@ -79,7 +105,17 @@ public abstract class UIPanel : MonoBehaviour
 
         _animating = false;
 
-        if (IsOpen) OnShown(); else OnHidden();
+        if (IsOpen)
+        {
+            OnShown();
+        }
+        else
+        {
+            // Fade BİTTİKTEN sonra tuvalden çık — yarı saydam ara kareler hâlâ çizilmeli.
+            if (_canvas != null) _canvas.enabled = false;
+
+            OnHidden();
+        }
     }
 
     protected virtual void OnShow() { }

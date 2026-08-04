@@ -147,8 +147,56 @@ public class QuakeBoostDirector : MonoBehaviour, IBoostDirector
 
     void HandleStateChanged(GameState s)
     {
-        // Pause / menü / oyun sonu: yarım kalmış bir deprem kamerayı kaydırılmış halde dondurmasın
-        if (s != GameState.Playing) Abort();
+        // PAUSE = DONDUR, iptal etme. Eskiden burada Abort() çağrılıyordu: oyuncu depremin
+        // ortasında pause'a bastığı an sarsıntı kesiliyor ve kullanım boşa gidiyordu
+        // (kullanım Begin'de zaten harcanmış oluyor). Artık sahne olduğu gibi donuyor ve
+        // Continue kaldığı yerden devam ediyor.
+        //
+        // Zamanın ve fiziğin durmasını timeScale = 0 hallediyor: _stateTime Time.deltaTime
+        // ile ilerliyor, FixedUpdate hiç çağrılmıyor, parçacıklar da donuyor. Burada
+        // yalnızca timeScale'e BAĞLI OLMAYAN kanalı susturuyoruz — ses.
+        if (s == GameState.Paused)
+        {
+            if (_state == State.Idle) return;
+
+            if (AudioService.Instance != null) AudioService.Instance.PauseQuakeRumble();
+
+            // Titreşimi HapticService kendi OnStateChanged'inde susturuyor (o servis
+            // unscaledDeltaTime ile döndüğü için pause'da titremeye devam ederdi).
+            return;
+        }
+
+        if (s == GameState.Playing)
+        {
+            ResumeFromPause();
+
+            return;
+        }
+
+        // Menü / oyun sonu: burada gerçekten iptal — yarım kalmış bir deprem kamerayı
+        // kaydırılmış halde dondurmasın.
+        Abort();
+    }
+
+    /// <summary>
+    /// Pause'dan dönüş. Yeni oyunda da çağrılıyor ama <c>_state == Idle</c> olduğu için
+    /// hiçbir şey yapmıyor (yeni oyunun sıfırlaması <see cref="HandleRunStarted"/>'da).
+    /// </summary>
+    void ResumeFromPause()
+    {
+        if (_state == State.Idle) return;
+
+        if (AudioService.Instance != null) AudioService.Instance.ResumeQuakeRumble();
+
+        if (HapticService.Instance != null) HapticService.Instance.ResumeQuake();
+
+        // FaceDirector OnStateChanged(Playing)'de her şeyi sıfırlıyor (yeni oyun için
+        // doğru) — depremin yüz durumunu geri yazmak bize kalıyor.
+        if (FaceDirector.Instance != null)
+        {
+            FaceDirector.Instance.SetQuakeMood(true);
+            FaceDirector.Instance.SuppressSleepFor(TotalDuration);
+        }
     }
 
     // ----------------------------------------------------------------- genel API
@@ -256,7 +304,15 @@ public class QuakeBoostDirector : MonoBehaviour, IBoostDirector
         // Boost boştayken tek bir enum karşılaştırmasıyla çık — oyunun %99'unda burası.
         if (_state == State.Idle) return;
 
-        if (GameManager.Instance == null || !GameManager.Instance.IsPlaying)
+        GameManager gm = GameManager.Instance;
+
+        // Pause: DONDUR. timeScale 0 olduğu için dt zaten 0 ve aşağıdaki hiçbir şey
+        // ilerlemez, ama açıkça çıkmak niyeti okunur kılıyor — ayrıca SetRumble'ı
+        // yazmayı bırakmamız kamerayı dinlenme konumuna oturtuyor (CameraShaker kendi
+        // kendini toparlıyor), yani pause paneli eğik bir kadrajın üstünde açılmıyor.
+        if (gm != null && gm.State == GameState.Paused) return;
+
+        if (gm == null || !gm.IsPlaying)
         {
             Abort();
             return;

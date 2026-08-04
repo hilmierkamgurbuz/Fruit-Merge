@@ -64,9 +64,10 @@ public class GameConfig : ScriptableObject
     public float continuousExitSpeed = 0.5f;
     
     public int continuousExitFrames = 5;
-    
-    [Tooltip("kaç kere üst üste yavaş olmalı")]
-    public int continuousEnterFrames = 5;
+
+    // continuousEnterFrames KALDIRILDI: hiçbir yerde okunmuyordu. Continuous'a GİRİŞ
+    // kare sayısıyla değil hızla karar veriliyor (continuousRearmSpeed) — alan, mimari
+    // değişince geride kalmış bir artıktı ve Inspector'da çalışıyormuş gibi duruyordu.
 
     [Tooltip("Discrete moddaki meyve bir çarpışmadan bu hızın üstünde çıkarsa, tünellemeyi önlemek için anında Continuous'a geri alınır")]
     public float continuousRearmSpeed = 4f;
@@ -183,13 +184,12 @@ public class GameConfig : ScriptableObject
              "iki birleşme engellenir (0 ms). Üstüne çıkarma, zincir yine susar")]
     public float mergeRetriggerGuard = 0.012f;
 
-    [Header("efektler")]
-    [Tooltip("aynı anda en fazla kaç efekt katmanı görünsün — mobilde overdraw sınırı. " +
-             "Sınıra gelince en eski efekt geri dönüştürülür")]
-    public int maxConcurrentEffects = 12;
-
-    [Tooltip("başlangıçta havuza kaç efekt objesi hazırlanacak")]
-    public int effectPrewarmCount = 16;
+    // maxConcurrentEffects ve effectPrewarmCount KALDIRILDI: ikisi de hiçbir yerde
+    // okunmuyordu. EffectDirector efekt başına obje yaratmıyor — tek bir paylaşımlı
+    // ParticleSystem'e Emit ediyor, parçacık havuzunu Unity native tarafta yönetiyor.
+    // Yani ne bir "eşzamanlı efekt sınırı" ne de bir "efekt havuzu ısıtması" var.
+    // maxConcurrentEffects'in tooltip'i ("sınıra gelince en eski efekt geri dönüştürülür")
+    // var olmayan bir mekanizmayı anlatıyordu, o yüzden özellikle silindi.
 
     [Header("yüz ifadeleri")]
     [Tooltip("karar turunun sıklığı (sn). 0.1 = 10 Hz, yeter. Görsel yumuşatma her karede döner")]
@@ -271,8 +271,11 @@ public class GameConfig : ScriptableObject
     [Tooltip("yıldız hangi ölçekten başlayıp 1'e insin")]
     public float starPunchScale = 1.7f;
 
-    [Tooltip("son yıldızdan rekor şeridine kadar bekleme (sn)")]
-    public float newRecordDelay = 0.3f;
+    // newRecordDelay KALDIRILDI: hiçbir yerde okunmuyordu. Rekor şeridi GameOverPanel'de
+    // son yıldızla AYNI karede çıkıyor. Alanı canlandırmak (şeridi 0.3 sn geciktirmek)
+    // kutlamanın ritmini değiştiren bir HİS kararı olurdu — mevcut zamanlama korunuyor,
+    // yanıltıcı alan siliniyor. Gecikme gerçekten istenirse GameOverPanel.OnTick'e
+    // ayrı bir sayaç olarak, bilinçli bir tasarım kararıyla eklenmeli.
 
     [Header("danger line")]
     [Tooltip("çizgi bu doluluk oranından sonra YANIP SÖNMEYE başlar (0-1). Altında " +
@@ -318,7 +321,11 @@ public class GameConfig : ScriptableObject
     [Tooltip("açılışta KARE BAŞINA kaç havuz objesi yaratılsın. Isıtma (FruitPool 40 + " +
              "ComboPopupDirector 6) artık Awake'te tek karede değil, açılış ekranı boyunca " +
              "karelere yayılıyor — ilk kare daha erken geliyor. Büyütürsen ısıtma çabuk " +
-             "biter ama kare başına daha çok Instantiate düşer")]
+             "biter ama kare başına daha çok Instantiate düşer.\n\n" +
+             "Konfeti/para/nişangâh havuzları BİLEREK bu listede değil (bkz. " +
+             "WormBoostDirector.BuildCursors üstündeki not): Reload Domain/Scene kapalı " +
+             "olduğu için ısıtma sayacı oturumlar arasında yaşıyor ve açılış ekranı " +
+             "kilitleniyordu")]
     public int splashPrewarmPerFrame = 2;
 
     // ------------------------------------------------------------------ boost: kurtçuklar
@@ -707,8 +714,11 @@ public class GameConfig : ScriptableObject
     [Tooltip("Editör'de her titreşim isteğini konsola yaz.\n\n" +
              "Masaüstünde motor YOK — Editör'de titreşimi hissedemezsin. Kancaların doğru " +
              "yerde ve doğru şiddette tetiklendiğini ancak böyle görebilirsin. Cihaz " +
-             "derlemesinde bu satır hiç derlenmiyor")]
-    public bool hapticEditorLog = true;
+             "derlemesinde bu satır hiç derlenmiyor.\n\n" +
+             "⚠️ Varsayılan KAPALI: deprem ve kemirme trenleri saniyede 14/9 darbe üretiyor. " +
+             "Trenler artık günlüğe hiç girmiyor ama kalan istekler de Profiler'da GC Alloc " +
+             "olarak görünüyor — kanca doğrulaması yapacağın zaman elle aç")]
+    public bool hapticEditorLog = false;
 
     [Header("titreşim — bırakma / birleşme")]
     [Tooltip("meyve bırakınca çok hafif bir tık")]

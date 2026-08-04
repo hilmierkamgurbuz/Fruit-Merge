@@ -164,6 +164,11 @@ public class GameOverPanel : UIPanel
 
     protected override void OnTick(float dt)
     {
+        // Panel kapalıyken yapacak iş yok: yıldız punch'ı da gösterim sayacı da yalnızca
+        // panel açıkken anlamlı. Oyunun neredeyse tamamı bu satırda bitiyor — eskiden
+        // TickPunch her karede 3 yıldızlık döngüyü boşa dönüyordu.
+        if (!IsOpen && !_revealing) return;
+
         TickPunch(dt);
 
         if (!_revealing) return;

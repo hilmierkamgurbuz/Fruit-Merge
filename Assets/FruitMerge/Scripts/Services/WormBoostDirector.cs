@@ -117,6 +117,15 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
     /// </summary>
     float _pulseRefUnit = 1f;
 
+    /// <summary>
+    /// Nişangâh sprite'ının dünya genişliği. Bütün nişangâhlar AYNI sprite'ı kullanıyor,
+    /// yani bu SABİT — eskiden <see cref="PlaceCursors"/> içinde meyve başına her karede
+    /// <c>sprite.rect</c> + <c>sprite.pixelsPerUnit</c> (iki native property) okunuyordu.
+    /// 44 meyveli tahtada kare başına 88 gereksiz erişim. <see cref="_pulseRefUnit"/> ile
+    /// aynı desen: bir kez, kurulumda.
+    /// </summary>
+    float _cursorRefUnit = 1f;
+
     // ---- kurtlar ---------------------------------------------------------
     Worm[] _worms;
     int    _wormsActive;
@@ -172,6 +181,15 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
 
     void Start()
     {
+        if (_config == null)
+        {
+            Debug.LogError("WormBoostDirector: GameConfig bağlı değil, bileşen kapatılıyor.", this);
+
+            enabled = false;
+
+            return;
+        }
+
         BuildCursors();
         BuildWorms();
 
@@ -182,6 +200,19 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
 
     // ----------------------------------------------------------------- kurulum
 
+    // NOT — kurulum bilinçli olarak Start'ta, PrewarmQueue'da DEĞİL.
+    //
+    // Bir denemede nişangâhlar ve kurtlar PrewarmQueue'ya taşınmıştı (açılış ekranı boyunca
+    // karelere yayılsınlar diye). Geri alındı: proje Play Mode'da "Reload Domain" VE
+    // "Reload Scene" kapalı çalışıyor, yani serialize EDİLMEYEN instance alanları (ısıtma
+    // sayacı, kurt dizisi) oturumlar arasında yaşıyor ve ikinci Play'de tutarsız hale
+    // geliyordu. Sonuç: PrewarmStep her karede patlıyor, PrewarmQueue.Done hiç Total'a
+    // ulaşmıyor ve SplashPanel'in çubuğu dolmadığı için oyun açılış ekranında kilitleniyordu.
+    //
+    // Buradaki tek karelik maliyet (44 nişangâh + 6 kurt) o riske değmiyor. FruitPool ve
+    // ComboPopupDirector'ün PrewarmQueue kullanması SORUN DEĞİL: onların ısıtması
+    // ObjectPool<T> üzerinden gidiyor ve durumları bu kadar kırılgan değil.
+
     void BuildCursors()
     {
         var parent = new GameObject("Cursors");
@@ -189,6 +220,12 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
         parent.transform.SetParent(transform, false);
 
         _cursorParent = parent.transform;
+
+        // Bütün nişangâhlar AYNI sprite'ı kullanıyor, yani dünya birimi sabit — bir kez
+        // burada hesaplanıyor (bkz. _cursorRefUnit). Eskiden PlaceCursors meyve başına
+        // her karede sprite'tan okuyordu.
+        if (_crosshair != null)
+            _cursorRefUnit = _crosshair.rect.width / _crosshair.pixelsPerUnit;
 
         for (int i = 0; i < _crosshairPrewarm; i++) CreateCursor();
 
@@ -204,25 +241,6 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
             _pulseRefUnit = _pulseFrames[0].rect.width / _pulseFrames[0].pixelsPerUnit;
 
         pulseGo.SetActive(false);
-    }
-
-    SpriteRenderer CreateCursor()
-    {
-        var go = new GameObject("Cursor" + _cursors.Count);
-
-        go.transform.SetParent(_cursorParent, false);
-
-        var sr = go.AddComponent<SpriteRenderer>();
-
-        sr.sprite       = _crosshair;
-        sr.sortingOrder = _config.boostCursorSortingOrder;
-        sr.color        = new Color(_cursorTint.r, _cursorTint.g, _cursorTint.b, 0f);
-
-        go.SetActive(false);
-
-        _cursors.Add(sr);
-
-        return sr;
     }
 
     void BuildWorms()
@@ -247,21 +265,91 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
         }
     }
 
+    SpriteRenderer CreateCursor()
+    {
+        var go = new GameObject("Cursor" + _cursors.Count);
+
+        go.transform.SetParent(_cursorParent, false);
+
+        var sr = go.AddComponent<SpriteRenderer>();
+
+        sr.sprite       = _crosshair;
+        sr.sortingOrder = _config.boostCursorSortingOrder;
+        sr.color        = new Color(_cursorTint.r, _cursorTint.g, _cursorTint.b, 0f);
+
+        go.SetActive(false);
+
+        _cursors.Add(sr);
+
+        return sr;
+    }
+
     // ----------------------------------------------------------------- olaylar
 
     void HandleRunStarted()
     {
         Abort();
 
-        _charges = _config.wormsChargesPerRun;
+        _charges = _config != null ? _config.wormsChargesPerRun : 0;
 
         GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 
     void HandleStateChanged(GameState s)
     {
-        // Pause / menü / oyun sonu: yarım kalmış bir boost ekranda asılı kalmasın
-        if (s != GameState.Playing) Abort();
+        // PAUSE = DONDUR, iptal etme. Eskiden burada Abort() çağrılıyordu: oyuncu kurtlar
+        // meyveyi yerken pause'a bastığı an kurtlar gidiyor, meyve kurtuluyor ve kullanım
+        // boşa gidiyordu (kullanım BeginBoost'ta zaten harcanmış oluyor). Artık sahne
+        // olduğu gibi donuyor ve Continue kaldığı yerden devam ediyor.
+        //
+        // Dondurmayı timeScale = 0 hallediyor: bütün faz sayaçları ve TickWorms
+        // Time.deltaTime ile ilerliyor, sis parçacıkları da donuyor. Update aşağıda
+        // pause'da erken çıkıyor — asıl sebebi zaman değil GİRDİ: TryReadTap pause
+        // panelindeki dokunuşu hedef seçimi sanardı.
+        if (s == GameState.Paused) return;
+
+        if (s == GameState.Playing)
+        {
+            ResumeFromPause();
+
+            return;
+        }
+
+        // Menü / oyun sonu: burada gerçekten iptal — yarım kalmış bir boost ekranda
+        // asılı kalmasın.
+        Abort();
+    }
+
+    /// <summary>
+    /// Pause'dan dönüş. Yeni oyunda da çağrılıyor ama <c>_state == Idle</c> olduğu için
+    /// hiçbir şey yapmıyor (yeni oyunun sıfırlaması <see cref="HandleRunStarted"/>'da).
+    /// </summary>
+    void ResumeFromPause()
+    {
+        if (_state == State.Idle) return;
+
+        // Continue'ye basan dokunuşun bırakılması hedef seçimi sayılmasın — Toggle'daki
+        // kilidin aynısı. Update pause'da erken çıktığı için o bırakma zaten görülmüyor,
+        // bu ikinci kalkan.
+        if (_state == State.Armed) _gestureBlocked = true;
+
+        // FaceDirector OnStateChanged(Playing)'de her şeyi sıfırlıyor (yeni oyun için
+        // doğru) — boostun yüz durumunu geri yazmak bize kalıyor.
+        if (FaceDirector.Instance != null)
+        {
+            FaceDirector.Instance.SetBoostFocus(
+                _target != null && _target.gameObject.activeSelf ? _target.transform : null);
+
+            // Kalan süreyi hesaplamak yerine tüm sekansı yeniden peşin ödüyoruz: fazla
+            // bastırmak zararsız (yalnızca uyuklayan yüzleri geciktiriyor).
+            FaceDirector.Instance.SuppressSleepFor(_config.wormApproachDuration +
+                                                   _config.wormEatDuration +
+                                                   _config.wormLeaveDuration);
+        }
+
+        // Kemirme titreşimini HapticService pause'da susturdu (o servis unscaledDeltaTime
+        // ile dönüyor); yeme devam ediyorsa treni yeniden başlat.
+        if (_state == State.Eat && !_fruitVanished) GameEvents.RaiseWormsChewingChanged(true);
     }
 
     // ----------------------------------------------------------------- genel API
@@ -311,10 +399,16 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
         // o listeyi her karede gezmenin hiçbir karşılığı yok.
         if (_state == State.Idle && _cursorAlpha <= 0f) return;
 
+        GameManager gm = GameManager.Instance;
+
+        // Pause: DONDUR. timeScale 0 olduğu için dt zaten 0, ama GİRDİ timeScale'e bağlı
+        // değil — TryReadTap çalışmaya devam etseydi pause panelindeki bir dokunuş hedef
+        // seçimi sayılırdı.
+        if (gm != null && gm.State == GameState.Paused) return;
+
         float dt = Time.deltaTime;
 
-        if (_state != State.Idle &&
-            (GameManager.Instance == null || !GameManager.Instance.IsPlaying))
+        if (_state != State.Idle && (gm == null || !gm.IsPlaying))
         {
             Abort();
             return;
@@ -357,6 +451,9 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
     /// <summary>Silahlıyken her meyvenin üstüne bir nişangâh koyar ve döndürür.</summary>
     void PlaceCursors()
     {
+        // ArmFruitsForShaking / FindFruitAt aynı kontrolü yapıyor, burası atlamıştı.
+        if (_pool == null) return;
+
         var fruits = _pool.Active;
 
         int used = 0;
@@ -378,14 +475,12 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
             t.position      = f.transform.position;
             t.localRotation = Quaternion.Euler(0f, 0f, _cursorAngle);
 
-            // nişangâhın sprite'ı 1 dünya biriminden farklı — meyveye göre ölçekle
+            // nişangâhın sprite'ı 1 dünya biriminden farklı — meyveye göre ölçekle.
+            // Sprite'ın dünya birimi SABİT olduğu için _cursorRefUnit'ten okunuyor
+            // (eskiden meyve başına her karede sprite'tan yeniden hesaplanıyordu).
             float world = f.Radius * 2f * _config.boostCrosshairScale;
 
-            float unit = sr.sprite != null
-                ? sr.sprite.rect.width / sr.sprite.pixelsPerUnit
-                : 1f;
-
-            float k = world / Mathf.Max(0.0001f, unit);
+            float k = world / Mathf.Max(0.0001f, _cursorRefUnit);
 
             t.localScale = new Vector3(k, k, 1f);
         }
@@ -600,7 +695,7 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
     /// </summary>
     void TickPulse(float dt)
     {
-        if (_pulseFrames == null || _pulseFrames.Length == 0) return;
+        if (_pulse == null || _pulseFrames == null || _pulseFrames.Length == 0) return;
 
         if (!_pulse.gameObject.activeSelf) return;
 
@@ -860,8 +955,17 @@ public class WormBoostDirector : MonoBehaviour, IBoostDirector
     {
         if (_state == State.Idle && _wormsActive == 0) return;
 
-        // hedef hâlâ tahtadaysa merge kilidini geri al
-        if (_target != null && _target.gameObject.activeSelf) _target.IsMerging = false;
+        // Hedef hâlâ tahtadaysa merge kilidini VE ShrinkFruit'in küçülttüğü ölçeği geri al.
+        //
+        // Ölçek geri alınmadığı için yemenin ortasında pause'a basmak meyveyi kalıcı
+        // küçük bırakıyordu: CircleCollider2D transform ölçeğiyle birlikte küçüldüğü için
+        // meyve FİZİKSEL olarak da küçülüyor, yığın onun etrafında çöküyor ve Radius/TopY
+        // hâlâ _targetScale'i kullandığı için doluluk/sınır hesapları yanlış oluyordu.
+        if (_target != null && _target.gameObject.activeSelf)
+        {
+            _target.IsMerging = false;
+            _target.RestoreScale();
+        }
 
         // Yemenin ortasında iptal edildiyse kemirme titreşimi asılı kalmasın
         if (_state == State.Eat && !_fruitVanished) GameEvents.RaiseWormsChewingChanged(false);

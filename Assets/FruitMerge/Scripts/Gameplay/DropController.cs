@@ -57,6 +57,19 @@ public class DropController : MonoBehaviour
     {
         if (_camera == null) _camera = Camera.main;
 
+        // _config bu sınıfın HER karesinde okunuyor; boş kalırsa sessizce NRE yağmuru
+        // yerine tek bir anlaşılır hata verip duruyoruz. (_pool, _dropIndicator ve
+        // _nextDisplay için zaten null kontrolleri var, _config atlanmıştı.)
+        if (_config == null)
+        {
+            Debug.LogError("DropController: GameConfig bağlı değil — bırakma yüksekliği " +
+                           "okunamıyor, bileşen kapatılıyor.", this);
+
+            enabled = false;
+
+            return;
+        }
+
         transform.position = new Vector3(transform.position.x, _config.dropY, 0f);
 
         // Bekleyen meyve artık burada doğmuyor. Açılışta state Menu olduğu için
@@ -288,7 +301,10 @@ public class DropController : MonoBehaviour
         // göstergeye meyvenin gerçek alt kenarını ver — artık merkez dropY'de değil
         float bottomWorldY = _config.dropY + hangY - _pending.Radius;
 
-        _dropIndicator.SetPending(bottomWorldY, _pending.Definition.displayColor);
+        // Aynı alan bu dosyanın iki başka yerinde (Drop, HandleStateChanged) null
+        // kontrolüyle kullanılıyor — burada da aynı standart.
+        if (_dropIndicator != null)
+            _dropIndicator.SetPending(bottomWorldY, _pending.Definition.displayColor);
 
         // Next() tüketti, Peek() artık BİR SONRAKİ meyveyi veriyor — yuvaya o yerleşir.
         // Devirden gelen sprite bu anda yuvaya geri sıçrayıp yeni meyveyle belirir.

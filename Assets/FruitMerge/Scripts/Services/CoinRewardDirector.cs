@@ -83,6 +83,12 @@ public class CoinRewardDirector : MonoBehaviour
 
             if (fruit == null || fruit.Definition == null) continue;
 
+            // Havuzun aktif listesi DALDAKİ bekleyen meyveyi de içeriyor (DropController
+            // onu _pool.Spawn ile alıyor). Oyuncunun hiç bırakmadığı meyve ödül vermemeli.
+            // GameOverDetector, QuakeBoostDirector ve WormBoostDirector aynı ayrımı
+            // yapıyor; tek atlayan yer burasıydı.
+            if (!fruit.IsDropped) continue;
+
             total += fruit.Definition.coinReward;
         }
 

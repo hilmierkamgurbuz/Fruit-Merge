@@ -130,6 +130,12 @@ public class GameOverDetector : MonoBehaviour
             if (f == null) continue;
             if (!f.IsDropped) continue;
             if (f.IsMerging) continue;
+
+            // FruitDefinition.countForGameOver şimdiye kadar hiçbir yerde OKUNMUYORDU:
+            // alanı kapatan biri "bu meyve oyunu bitirmez" sanıyor ama hiçbir etkisi
+            // olmuyordu. Varsayılan true olduğu için mevcut davranış değişmiyor.
+            if (f.Definition != null && !f.Definition.countForGameOver) continue;
+
             if (Time.time - f.DropTime < _config.dropGracePeriod) continue;
             if (f.transform.position.y < lineY) continue;
             if (f.Body.linearVelocity.sqrMagnitude >
@@ -143,7 +149,9 @@ public class GameOverDetector : MonoBehaviour
     
     float ComputeFillRatio()
     {
-        float floorY = _floor != null ? _floor.bounds.max.y : transform.position.y - 5f;
+        // Önbellekli property (bkz. FloorY): Collider2D.bounds native bir çağrı ve zemin
+        // hiç hareket etmiyor. Buradaki kopya hesap o önbelleği boşa çıkarıyordu.
+        float floorY = FloorY;
         float span   = transform.position.y - floorY;
         if (span <= 0.0001f) return 0f;
 

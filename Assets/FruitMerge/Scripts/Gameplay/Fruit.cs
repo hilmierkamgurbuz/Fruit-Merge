@@ -50,6 +50,19 @@ public class Fruit : MonoBehaviour
     float _squashIntensity;
     GameConfig _config;
 
+    /// <summary>
+    /// Fizik adımı sayacı. <c>Time.frameCount</c> KULLANILMIYOR: bir render karesinde
+    /// birden fazla fizik adımı olabiliyor ve o zaman aşağıdaki guard yanlış eliyor olurdu.
+    /// </summary>
+    int _physicsStep;
+
+    /// <summary>
+    /// <see cref="TryRearmContinuous"/>'un son çalıştığı fizik adımı. Yığının içindeki
+    /// meyvenin 4 komşusu varsa <c>OnCollisionStay2D</c> aynı adımda 4 kez geliyor, ama
+    /// o metot temas parametresine hiç bakmıyor — adım başına bir kez yeterli.
+    /// </summary>
+    int _rearmStep = -1;
+
     void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
@@ -115,6 +128,7 @@ public class Fruit : MonoBehaviour
         _slowFrames = 0;
         _popTimer  = -1f;
         _squashTimer = -1f;
+        _rearmStep = -1;
         _rb.simulated = false;
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
 
@@ -181,6 +195,24 @@ public class Fruit : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Görsel ölçeği hedef ölçeğe geri oturtur ve çalışan pop/squash animasyonunu iptal eder.
+    ///
+    /// Kurtçuk boost'u yeme sırasında meyveyi küçültüyor (<c>WormBoostDirector.ShrinkFruit</c>).
+    /// Boost yarıda kesilirse (pause / menü / oyun sonu) meyve o ölçekte kalıyordu —
+    /// <c>CircleCollider2D</c> transform ölçeğiyle birlikte küçüldüğü için meyve FİZİKSEL
+    /// olarak da küçük kalıyor ve yığın onun etrafında çöküyordu. Üstelik <see cref="Radius"/>
+    /// ve <see cref="TopY"/> hâlâ <c>_targetScale</c>'i kullandığı için doluluk/sınır
+    /// hesapları o meyve için yanlış değer üretiyordu.
+    /// </summary>
+    public void RestoreScale()
+    {
+        _popTimer    = -1f;
+        _squashTimer = -1f;
+
+        transform.localScale = Vector3.one * _targetScale;
+    }
+
     public void PlaySquash(float intensity)
     {
         if (_config == null) return;
@@ -192,7 +224,15 @@ public class Fruit : MonoBehaviour
         _squashTimer = 0f;
     }
 
-    void Update()
+    /// <summary>
+    /// Pop / squash animasyonu.
+    ///
+    /// <b>Kendi <c>Update</c>'i YOK</b> (kural 7): <see cref="FruitTicker"/> tek döngüden
+    /// çağırıyor. Sahnede en çok kopyası olan bileşen bu — 60 meyve için 60 ayrı
+    /// managed↔native geçişi ödemenin karşılığı yok. Aynı desen <see cref="FruitFace"/>,
+    /// <see cref="Worm"/> ve <see cref="ComboPopupItem"/>'da zaten uygulanmış.
+    /// </summary>
+    public void TickVisual(float dt)
     {
         if (_popTimer < 0f && _squashTimer < 0f) return;
 
@@ -200,7 +240,7 @@ public class Fruit : MonoBehaviour
 
         if (_popTimer >= 0f)
         {
-            _popTimer += Time.deltaTime;
+            _popTimer += dt;
 
             float t = Mathf.Clamp01(_popTimer / _config.popDuration);
 
@@ -219,7 +259,7 @@ public class Fruit : MonoBehaviour
 
         if (_squashTimer >= 0f)
         {
-            _squashTimer += Time.deltaTime;
+            _squashTimer += dt;
 
             float t = Mathf.Clamp01(_squashTimer / _config.squashDuration);
 
@@ -241,9 +281,29 @@ public class Fruit : MonoBehaviour
         transform.localScale = new Vector3(_targetScale * popScale * squashX, _targetScale * popScale * squashY, 1f);
     }
 
-    private void FixedUpdate()
+    /// <summary>
+    /// Dönüş söndürme + Continuous→Discrete geçişi. Fizik yazması fizik adımına ait
+    /// olduğu için <see cref="FruitTicker"/>'ın <c>FixedUpdate</c>'inden çağrılıyor
+    /// (kendi <c>FixedUpdate</c>'i yok — bkz. <see cref="TickVisual"/>).
+    /// </summary>
+    public void TickPhysics()
     {
+        // Sayaç erken çıkışlardan ÖNCE artıyor: uyuyan meyve uyandığında
+        // OnCollisionStay2D'nin guard'ı bayat kalmasın.
+        _physicsStep++;
+
         if (_config == null) return;
+
+        // Daldaki bekleyen meyve simülasyonda değil: hızı da çarpışma modu da
+        // ResetState'te sabitlendi, burada yapılacak iş yok.
+        if (!_rb.simulated) return;
+
+        // Uyuyan gövdede bu metodun TAMAMI no-op: hız uyku toleransının altında, açısal
+        // hız uykuya geçmeden önce zaten 0'a sönmüş (spinSettleRate 180°/sn², uyku eşiği
+        // 2°/sn) ve mod da Discrete'e düşmüş. Suika tipi bir oyunda yığının büyük kısmı
+        // zamanın çoğunda uyuyor, yani bu kapı en kalabalık anda en çok işi eliyor.
+        // Temas gövdeyi uyandırdığı anda tick kendiliğinden geri geliyor.
+        if (!_rb.IsAwake()) return;
 
         float limitSqr = _config.continuousExitSpeed * _config.continuousExitSpeed;
         bool isSlow = _rb.linearVelocity.sqrMagnitude < limitSqr;
@@ -274,12 +334,24 @@ public class Fruit : MonoBehaviour
     {
         TryRequestMerge(c);
         TryRequestSquash(c);
+
+        // Enter temas başına en fazla bir kez geldiği için burada guard'a gerek yok.
         TryRearmContinuous();
     }
 
     void OnCollisionStay2D(Collision2D c)
     {
+        // Temas BAŞINA gerekli: her komşuyu ayrı ayrı sınaması lazım.
         TryRequestMerge(c);
+
+        // TryRearmContinuous temas parametresine BAKMIYOR, sadece kendi hızımıza bakıyor —
+        // yığının içindeki meyvenin 4 komşusu varsa aynı hesap aynı fizik adımında 4 kez
+        // yapılıyordu. Adım başına bir kez yeterli: adım içinde hız değişmiyor, dolayısıyla
+        // "sert çarpışmadan sonra ANINDA Continuous'a dön" tünelleme garantisi bozulmuyor.
+        if (_rearmStep == _physicsStep) return;
+
+        _rearmStep = _physicsStep;
+
         TryRearmContinuous();
     }
 

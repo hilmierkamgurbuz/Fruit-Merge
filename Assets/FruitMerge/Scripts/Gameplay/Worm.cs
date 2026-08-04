@@ -168,6 +168,16 @@ public class Worm : MonoBehaviour
         _mealDone   = false;
         JustBit     = false;
 
+        // Halka ölçeği kurdun ömrü boyunca SABİT (_diameter yukarıda hesaplandı, taper
+        // yalnızca indekse bağlı) — eskiden ApplySegment her karede, halka başına yeniden
+        // yazıyordu. 6 kurt × 5 halka = kare başına 30 gereksiz transform yazımı (kural 9).
+        for (int i = 0; i < _segments.Length; i++)
+        {
+            float taper = 1f - 0.05f * i;
+
+            _segments[i].localScale = new Vector3(_diameter * taper, _diameter * taper, 1f);
+        }
+
         ApplyHeadSprite(_spHeadIdle);
 
         // force: havuzdan gelen kurt önceki seferin şişmiş gövdesiyle dönmesin
@@ -336,10 +346,8 @@ public class Worm : MonoBehaviour
 
         t.localPosition = pos;
 
-        // kuyruğa doğru hafif incelme — zincire hacim veriyor
-        float taper = 1f - 0.05f * i;
-
-        t.localScale = new Vector3(_diameter * taper, _diameter * taper, 1f);
+        // localScale burada YAZILMIYOR: sabit olduğu için Configure'da bir kez ayarlanıyor
+        // (kuyruğa doğru incelme dahil).
 
         if (forward.sqrMagnitude < 1e-6f) return;
 

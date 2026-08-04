@@ -121,6 +121,11 @@ public class ConfettiDirector : MonoBehaviour
 
     // ---------------------------------------------------------------- havuz
 
+    // NOT — havuz bilinçli olarak Awake'te, PrewarmQueue'da DEĞİL. Bir denemede karelere
+    // yayılmıştı ve geri alındı; gerekçe WormBoostDirector.BuildCursors'ın üstünde yazıyor
+    // (Play Mode'da Reload Domain/Scene kapalı olduğu için ısıtma sayacı oturumlar arasında
+    // yaşıyor ve açılış ekranı kilitleniyordu).
+
     void BuildPool()
     {
         int count = _config != null ? Mathf.Max(1, _config.confettiPoolSize) : 140;

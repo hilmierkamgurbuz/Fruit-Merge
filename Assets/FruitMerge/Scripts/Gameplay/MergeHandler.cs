@@ -57,7 +57,7 @@ public class MergeHandler : MonoBehaviour
         // OnCollisionStay2D isteği yeniden koyuyor.
         if (GameManager.Instance == null || !GameManager.Instance.IsPlaying)
         {
-            if (_queue.Count > 0) _queue.Clear();
+            _queue.Clear();
 
             _queuedPairs.Clear();
 
@@ -81,7 +81,15 @@ public class MergeHandler : MonoBehaviour
             
         }
 
-        if (_queue.Count == 0) _queuedPairs.Clear();
+        // KOŞULSUZ temizle. Eskiden yalnızca kuyruk boşalınca temizleniyordu; guard 100'e
+        // takıldığında işlenmiş çiftlerin anahtarları sette kalıyor ve Request onları
+        // reddediyordu. Anahtar GetInstanceID tabanlı, havuz da instance'ları yeniden
+        // kullandığı için bu "aynı iki meyve bir daha birleşemiyor" demekti.
+        //
+        // Kalıntı bırakmamak güvenli: kuyrukta bekleyen istekler zaten kuyrukta, set
+        // yalnızca YENİ istek eklemeyi filtreliyor. Aynı çift için ikinci bir istek
+        // gelirse yukarıdaki IsMerging / activeSelf / Definition kontrolleri onu eliyor.
+        _queuedPairs.Clear();
     }
     
     void Execute(Fruit a, Fruit b)

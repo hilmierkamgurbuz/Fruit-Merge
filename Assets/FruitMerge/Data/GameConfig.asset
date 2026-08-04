@@ -29,7 +29,6 @@ MonoBehaviour:
   gameOverCheckInterval: 0.1
   continuousExitSpeed: 0.5
   continuousExitFrames: 5
-  continuousEnterFrames: 5
   continuousRearmSpeed: 4
   spinSettleRate: 180
   bagCopiesPerFruit: 2
@@ -61,8 +60,6 @@ MonoBehaviour:
   sfxRetriggerGuard: 0.06
   audioSourceCount: 6
   mergeRetriggerGuard: 0.012
-  maxConcurrentEffects: 12
-  effectPrewarmCount: 16
   faceMoodInterval: 0.1
   faceMergeReactionTime: 2
   faceCrowdReactionMinTier: 6
@@ -83,7 +80,6 @@ MonoBehaviour:
   starRevealInterval: 0.35
   starPunchDuration: 0.22
   starPunchScale: 1.7
-  newRecordDelay: 0.3
   dangerShowRatio: 0.75
   dangerIdleAlpha: 0.15
   dangerMinAlpha: 0.25
@@ -178,7 +174,7 @@ MonoBehaviour:
   coinPunchDuration: 0.18
   hapticStrength: 1
   hapticGuard: 0.05
-  hapticEditorLog: 1
+  hapticEditorLog: 0
   hapticOnDrop: 1
   hapticDropIntensity: 0.22
   hapticOnMerge: 1

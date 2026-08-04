@@ -11,12 +11,32 @@ public class ScoreSystem : MonoBehaviour
 
     float _lastMergeTime = -999f;
 
-    void Awake() => Instance = this;
+    // Kopya koruması: kod tabanındaki bütün diğer singleton'lar (GameManager, FaceDirector,
+    // AudioService, EffectDirector, CoinFlyDirector…) bunu yapıyor. Bu sınıf atlamıştı ve
+    // sahnede kopya kalırsa sessizce ikincisi kazanıyordu — iki ScoreSystem OnMerged'e
+    // ayrı ayrı abone olduğu için skor da iki kat artardı.
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogWarning("ScoreSystem: sahnede ikinci kopya var, bu obje yok ediliyor.", this);
+
+            Destroy(gameObject);
+
+            return;
+        }
+
+        Instance = this;
+    }
 
     void OnDestroy() { if (Instance == this) Instance = null; }
 
     void OnEnable()
     {
+        // Awake'te yok edilmeye işaretlenen kopya abone olmasın — yoksa skor iki kat artar.
+        // (AudioService / HapticService / EffectDirector ile aynı desen.)
+        if (Instance != this) return;
+
         GameEvents.OnMerged       += HandleMerged;
         GameEvents.OnMaxTierMerged += HandleMaxTier;
         GameEvents.OnRunStarted   += HandleRunStarted;
@@ -24,6 +44,8 @@ public class ScoreSystem : MonoBehaviour
 
     void OnDisable()
     {
+        if (Instance != this) return;
+
         GameEvents.OnMerged       -= HandleMerged;
         GameEvents.OnMaxTierMerged -= HandleMaxTier;
         GameEvents.OnRunStarted   -= HandleRunStarted;
@@ -31,6 +53,8 @@ public class ScoreSystem : MonoBehaviour
 
     void HandleMerged(FruitDefinition produced, Vector2 pos)
     {
+        if (_config == null || produced == null) return;
+
         if (Time.time - _lastMergeTime <= _config.comboWindow) Combo++;
         else                                                    Combo = 1;
 
@@ -47,6 +71,8 @@ public class ScoreSystem : MonoBehaviour
 
     void HandleMaxTier(FruitDefinition def, Vector2 pos)
     {
+        if (def == null) return;
+
         Score += def.score * 5;
         Combo = 0;
 
