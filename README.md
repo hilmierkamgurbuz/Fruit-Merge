@@ -40,8 +40,8 @@ Sakin müzikler, gülen yüzlü meyveler ve elle çizilmiş yumuşak bir görsel
 ## Ekran Görüntüleri
 
 <p align="center">
-  <img src="readme_ss.png" alt="Oynanış" width="260">
-  <img src="readme_ss_2.png" alt="Oynanış" width="260">
+  <img src="Assets/Screenshots/readme_ss.png" alt="Oynanış" width="260">
+  <img src="Assets/Screenshots/readme_ss_2.png" alt="Oynanış" width="260">
 </p>
 
 ## Teknik Detaylar
