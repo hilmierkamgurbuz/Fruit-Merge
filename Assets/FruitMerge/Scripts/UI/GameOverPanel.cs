@@ -191,6 +191,11 @@ public class GameOverPanel : UIPanel
         }
 
         _revealing = false;
+
+        // Yıldızlar yerine oturdu — coin ödülü artık akabilir. Bu olay OnGameOver'dan
+        // ayrı: ödül paraları yıldızlardan çıktığı için yıldızların dolmasını beklemek
+        // zorunda. Yıldız kazanılmasa da (0) yayınlanıyor, meyve ödülü yine verilecek.
+        GameEvents.RaiseStarsRevealed(_starTarget);
     }
 
     void RevealStar(int index)
@@ -202,6 +207,9 @@ public class GameOverPanel : UIPanel
         _punch[index] = 1f;
 
         if (AudioService.Instance != null) AudioService.Instance.PlayStar(index);
+
+        // Titreşim sesle AYNI karede: yıldızın dolması tek bir olay olarak hissedilsin
+        if (HapticService.Instance != null) HapticService.Instance.PlayStar(index);
     }
 
     void ShowNewRecord()
@@ -209,6 +217,14 @@ public class GameOverPanel : UIPanel
         if (_newRecordRibbon != null) _newRecordRibbon.SetActive(true);
 
         if (AudioService.Instance != null) AudioService.Instance.PlayNewRecord();
+
+        // Rekor titreşimi OnNewRecord'a bağlanamaz: o olay oyun sonunda, kaybetme
+        // titreşiminin tam üstünde yayınlanıyor. Şerit BURADA çıkıyor, titreşim de burada.
+        if (HapticService.Instance != null) HapticService.Instance.PlayNewRecord();
+
+        // Konfeti de aynı gerekçeyle burada: GameEvents.OnNewRecord oyun sonunda,
+        // şerit henüz çıkmamışken yayınlanıyor. Kutlama şeridin çıktığı ANDA olmalı.
+        if (ConfettiDirector.Instance != null) ConfettiDirector.Instance.PlayRain();
     }
 
     void ResetStars()

@@ -44,12 +44,36 @@ public class GameOverDetector : MonoBehaviour
         }
     }
 
-    void OnEnable()  { GameEvents.OnStateChanged += HandleStateChanged; }
-    void OnDisable() { GameEvents.OnStateChanged -= HandleStateChanged; }
+    void OnEnable()
+    {
+        GameEvents.OnStateChanged += HandleStateChanged;
+        GameEvents.OnRunStarted   += HandleRunStarted;
+    }
+
+    void OnDisable()
+    {
+        GameEvents.OnStateChanged -= HandleStateChanged;
+        GameEvents.OnRunStarted   -= HandleRunStarted;
+    }
 
     void HandleStateChanged(GameState s)
     {
         if (s == GameState.Playing) { _fired = false; _violationTimer = 0f; }
+    }
+
+    /// <summary>
+    /// Yeni oyun: doluluk oranını sıfırla. OnStateChanged(Playing) DEĞİL, çünkü o
+    /// pause'dan dönüşte de geliyor ve oranı orada sıfırlamak çizgiyi bir anlık
+    /// söndürürdü.
+    ///
+    /// Çizgi artık oyun boyunca görünür olduğu için bu şart: oyun sonunda oran ~1
+    /// kalıyor, tahta temizlendiği ilk 100 ms'de çizgi bomboş tahtanın üstünde
+    /// kırmızı kırmızı çakıyordu.
+    /// </summary>
+    void HandleRunStarted()
+    {
+        _fillRatio  = 0f;
+        _checkTimer = 0f;
     }
 
     void Update()
@@ -57,14 +81,21 @@ public class GameOverDetector : MonoBehaviour
         bool playing = GameManager.Instance != null && GameManager.Instance.IsPlaying && !_fired;
         if (!playing) { SetLineAlpha(0f); return; }
 
-        // Boost oynarken oyunu bitirme: kurtçuklar tam da yığını indirmek için çağrıldı,
-        // hedef meyve yenirken sayacın dolması haksızlık olurdu.
-        if (WormBoostDirector.Instance != null && WormBoostDirector.Instance.IsBusy)
+        // Boost oynarken oyunu bitirme: boost tam da yığını indirmek için çağrıldı, iş
+        // yaparken sayacın dolması haksızlık olurdu. Deprem için ayrıca gerekli — meyveler
+        // sarsılırken kısa süre çizginin üstüne çıkabiliyorlar.
+        if (BoostGate.IsAnyBusy)
         {
             _violationTimer = 0f;
+
+            // Çizgiyi sürmeye devam et: boost 2-3 saniye sürüyor, buradan dönersek
+            // çizgi o süre boyunca yanıp sönmenin ortasında bir alpha'da donup kalıyordu.
+            // _fillRatio güncellenmediği için son bilinen tehlike seviyesinde nabız atıyor.
+            UpdateLineVisual();
+
             return;
         }
-        
+
         _checkTimer -= Time.deltaTime;
         if (_checkTimer <= 0f)
         {
@@ -137,17 +168,31 @@ public class GameOverDetector : MonoBehaviour
         return Mathf.Clamp01((highest - floorY) / span);
     }
     
+    /// <summary>
+    /// Çizginin görünürlüğü. İki kademe var:
+    ///
+    ///  - <b>boşta</b> — yığın <c>dangerShowRatio</c>'nun altında: çizgi sabit ve soluk
+    ///    duruyor. Eskiden tamamen kaybolurdu ve oyuncu sınırı ancak yığın oraya
+    ///    dayandığında öğreniyordu; artık nereye kadar yığabileceğini baştan görüyor.
+    ///  - <b>tehlikede</b> — eşiğin üstünde: nabız atıyor. Hem hız hem tepe alpha yığın
+    ///    yükseldikçe artıyor, yani "yaklaşıyor" ile "az kaldı" birbirinden ayırt ediliyor.
+    ///
+    /// Nabzın DİBİ boştaki alpha'nın altına inmiyor: eşiği geçtiği an çizgi bir kare
+    /// için sönük hâlinden daha da soluklaşıp geri gelirdi, bu da titreme gibi görünürdü.
+    /// </summary>
     void UpdateLineVisual()
     {
+        float idle = _config.dangerIdleAlpha;
         float show = _config.dangerShowRatio;
-        if (_fillRatio < show) { SetLineAlpha(0f); return; }
+
+        if (_fillRatio < show) { SetLineAlpha(idle); return; }
 
         float t     = Mathf.Clamp01((_fillRatio - show) / Mathf.Max(0.0001f, 1f - show));
         float hz    = Mathf.Lerp(_config.dangerBlinkHzMin, _config.dangerBlinkHzMax, t);
         float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * hz * 2f * Mathf.PI);
         float peak  = Mathf.Lerp(_config.dangerMinAlpha, _config.dangerMaxAlpha, t);
 
-        SetLineAlpha(Mathf.Lerp(peak * 0.35f, peak, pulse));
+        SetLineAlpha(Mathf.Lerp(Mathf.Max(idle, peak * 0.35f), peak, pulse));
     }
 
     void SetLineAlpha(float a)

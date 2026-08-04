@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 /// <summary>
 /// "Tatlı kurtçuklar" boost'u — baştan sona.
@@ -25,9 +24,11 @@ using UnityEngine.EventSystems;
 ///    kırıntılar zaten var olan <see cref="EffectDirector.PlayJuice"/>'tan geliyor.
 /// </summary>
 [DefaultExecutionOrder(-30)]
-public class WormBoostDirector : MonoBehaviour
+public class WormBoostDirector : MonoBehaviour, IBoostDirector
 {
     public static WormBoostDirector Instance { get; private set; }
+
+    public BoostId Id => BoostId.Worms;
 
     enum State { Idle, Armed, Approach, Eat, Leave }
 
@@ -77,11 +78,25 @@ public class WormBoostDirector : MonoBehaviour
 
     public bool CanArm => _charges != 0
                           && GameManager.Instance != null
-                          && GameManager.Instance.IsPlaying;
+                          && GameManager.Instance.IsPlaying
+                          && !BoostGate.IsAnyBusy;   // başka bir boost oynarken silahlanma
 
     State _state;
     float _stateTime;
     int   _charges;
+
+    /// <summary>
+    /// Silahlanmayı SAĞLAYAN dokunuş, hedef seçimi olarak da okunmasın.
+    ///
+    /// HUD butonu <c>onClick</c>'i parmak KALKARKEN tetikliyor; aynı karede
+    /// <see cref="TickArmed"/> o bırakmayı görüp "boşluğa dokunuldu" diyerek
+    /// <see cref="Cancel"/> çağırıyordu. Boost bir kare içinde silahlanıp iptal
+    /// oluyordu — ekranda nişangâh hiç görünmüyor, sonra da kilitsiz kalan dokunuş
+    /// <see cref="DropController"/>'a düşüp meyve bırakıyordu.
+    ///
+    /// <see cref="Toggle"/> kilidi koyuyor, sadece YENİ bir basış açıyor.
+    /// </summary>
+    bool _gestureBlocked;
 
     // ---- hedefleme -------------------------------------------------------
     readonly List<SpriteRenderer> _cursors = new List<SpriteRenderer>(48);
@@ -136,12 +151,16 @@ public class WormBoostDirector : MonoBehaviour
 
     void OnEnable()
     {
+        BoostGate.Register(this);
+
         GameEvents.OnRunStarted   += HandleRunStarted;
         GameEvents.OnStateChanged += HandleStateChanged;
     }
 
     void OnDisable()
     {
+        BoostGate.Unregister(this);
+
         GameEvents.OnRunStarted   -= HandleRunStarted;
         GameEvents.OnStateChanged -= HandleStateChanged;
     }
@@ -158,7 +177,7 @@ public class WormBoostDirector : MonoBehaviour
 
         _charges = _config.wormsChargesPerRun;
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 
     // ----------------------------------------------------------------- kurulum
@@ -236,7 +255,7 @@ public class WormBoostDirector : MonoBehaviour
 
         _charges = _config.wormsChargesPerRun;
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 
     void HandleStateChanged(GameState s)
@@ -256,11 +275,12 @@ public class WormBoostDirector : MonoBehaviour
 
         if (!CanArm) return;
 
-        _state       = State.Armed;
-        _stateTime   = 0f;
-        _cursorAngle = 0f;
+        _state          = State.Armed;
+        _stateTime      = 0f;
+        _cursorAngle    = 0f;
+        _gestureBlocked = true;   // butona basan dokunuşun bırakılması seçim sayılmasın
 
-        GameEvents.RaiseWormsBoostStateChanged(true, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, true, _charges);
     }
 
     public void Cancel()
@@ -269,7 +289,17 @@ public class WormBoostDirector : MonoBehaviour
 
         _state = State.Idle;
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
+    }
+
+    /// <summary>Mağazadan satın alma. Sınırsız moddaysa (-1) dokunma.</summary>
+    public void AddCharge(int amount)
+    {
+        if (amount <= 0 || _charges < 0) return;
+
+        _charges += amount;
+
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, _state == State.Armed, _charges);
     }
 
     // ----------------------------------------------------------------- döngü
@@ -399,36 +429,22 @@ public class WormBoostDirector : MonoBehaviour
     {
         world = default;
 
-        bool released;
-        Vector2 screen;
-        int finger = -1;
+        // Silahlandıktan SONRA başlayan ilk basış kilidi açıyor.
+        if (PointerInput.Began) _gestureBlocked = false;
 
-        if (Input.touchCount > 0)
-        {
-            Touch t  = Input.GetTouch(0);
-            screen   = t.position;
-            finger   = t.fingerId;
-            released = t.phase == TouchPhase.Ended;
-        }
-        else
-        {
-            screen   = Input.mousePosition;
-            released = Input.GetMouseButtonUp(0);
-        }
+        if (!PointerInput.Released) return false;
 
-        if (!released) return false;
+        if (_gestureBlocked)
+        {
+            _gestureBlocked = false;
+
+            return false;
+        }
 
         // HUD butonuna basılan dokunuş hedef seçimi sayılmasın
-        if (EventSystem.current != null)
-        {
-            bool overUI = finger >= 0
-                ? EventSystem.current.IsPointerOverGameObject(finger)
-                : EventSystem.current.IsPointerOverGameObject();
+        if (PointerInput.IsOverUI()) return false;
 
-            if (overUI) return false;
-        }
-
-        world = _camera.ScreenToWorldPoint(screen);
+        world = _camera.ScreenToWorldPoint(PointerInput.Position);
 
         return true;
     }
@@ -502,7 +518,7 @@ public class WormBoostDirector : MonoBehaviour
         _crumbBursts = 0;
         _crumbWorm   = 0;
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 
     void SpawnWorms()
@@ -569,6 +585,12 @@ public class WormBoostDirector : MonoBehaviour
         _stateTime = 0f;
 
         HidePulse();
+
+        // Kemirme başladı. Ses/titreşim director'e bağlanmasın diye olay yayınlıyoruz
+        // (OnQuakeStarted ile aynı desen) — dinleyen şu an HapticService: yeme, ekranda
+        // sisle ve kırıntıyla görülen bir SÜREÇ, parmağın da o süre boyunca kemirmeyi
+        // hissetmesi gerekiyor.
+        GameEvents.RaiseWormsChewingChanged(true);
     }
 
     /// <summary>
@@ -758,6 +780,9 @@ public class WormBoostDirector : MonoBehaviour
     {
         _fruitVanished = true;
 
+        // Kemirme bitti: kurtlar da tam bu anda FinishMeal ile çiğnemeyi bırakıyor.
+        GameEvents.RaiseWormsChewingChanged(false);
+
         // seyredilecek meyve kalmadı — diğer yüzler normale dönsün
         if (FaceDirector.Instance != null) FaceDirector.Instance.SetBoostFocus(null);
 
@@ -808,7 +833,7 @@ public class WormBoostDirector : MonoBehaviour
 
         HidePulse();
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 
     // ---------------------------------------------------------------- yardımcı
@@ -838,6 +863,9 @@ public class WormBoostDirector : MonoBehaviour
         // hedef hâlâ tahtadaysa merge kilidini geri al
         if (_target != null && _target.gameObject.activeSelf) _target.IsMerging = false;
 
+        // Yemenin ortasında iptal edildiyse kemirme titreşimi asılı kalmasın
+        if (_state == State.Eat && !_fruitVanished) GameEvents.RaiseWormsChewingChanged(false);
+
         if (FaceDirector.Instance != null) FaceDirector.Instance.SetBoostFocus(null);
 
         if (_worms != null)
@@ -856,6 +884,6 @@ public class WormBoostDirector : MonoBehaviour
 
         _cursorAlpha = 0f;
 
-        GameEvents.RaiseWormsBoostStateChanged(false, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Worms, false, _charges);
     }
 }

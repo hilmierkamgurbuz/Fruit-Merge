@@ -74,6 +74,7 @@ MonoBehaviour:
   faceLookSpeed: 8
   faceFallSpeedThreshold: 1.5
   faceFallFollowTime: 1.2
+  faceFallGrace: 0.3
   faceTransitionDuration: 0.14
   star1Score: 1000
   star2Score: 2500
@@ -84,6 +85,7 @@ MonoBehaviour:
   starPunchScale: 1.7
   newRecordDelay: 0.3
   dangerShowRatio: 0.75
+  dangerIdleAlpha: 0.15
   dangerMinAlpha: 0.25
   dangerMaxAlpha: 0.9
   dangerBlinkHzMin: 0.6
@@ -124,4 +126,110 @@ MonoBehaviour:
   eatCrumbIntensity: 0.45
   eatFruitMinScale: 0.35
   wormsScoreOnEat: 0
-  wormsChargesPerRun: 3
+  wormsChargesPerRun: 1
+  quakeShakeDuration: 2.5
+  quakeSettleDuration: 0.8
+  quakeKickInterval: 0.06
+  quakeKickIntervalJitter: 0.015
+  quakeKickStrength: 3.2
+  quakeKickJitterRatio: 0.35
+  quakeKickRestSpeed: 1
+  quakeKickDirectionSlots: 4
+  quakeKickVerticalScale: 0.6
+  quakeMaxRiseSpeed: 0.6
+  quakeLookMinSpeed: 0.35
+  quakeKickScaleSmall: 1
+  quakeKickScaleBig: 0.75
+  quakeMaxSpeed: 4.5
+  quakeAttackTime: 0.15
+  quakeReleaseTime: 0.4
+  quakeShakeAmplitude: 0.12
+  quakeShakeFrequency: 14
+  quakeStartPunch: 0.7
+  quakeDustRate: 70
+  quakeDustLifetime: 0.9
+  quakeDustSize: 0.55
+  quakeDustAlpha: 0.55
+  quakeDustColor: {r: 1, g: 1, b: 1, a: 1}
+  quakeDustSpawnLift: 0.12
+  quakeDustWallShare: 0.45
+  quakeDustWallHeight: 5
+  quakeDustWallInset: 0.15
+  quakeRubbleRate: 14
+  quakeRubbleLifetime: 1.45
+  quakeRubbleSize: 0.14
+  quakeRubbleColor: {r: 1, g: 1, b: 1, a: 1}
+  quakeRubbleEdgeInset: 0.25
+  quakeRubbleSpawnSpread: 1.8
+  quakeRubbleSpawnYOffset: 3
+  quakeRubbleSortingOrder: -4
+  quakeChargesPerRun: 1
+  wormsBoostPrice: 20
+  quakeBoostPrice: 50
+  coinPerStar: 10
+  coinPayoutDelay: 0.35
+  coinPayoutStagger: 0.09
+  coinFlyDuration: 0.75
+  coinFlyArc: 260
+  coinFlySize: 96
+  coinFlyEndScale: 0.55
+  coinCountSpeed: 45
+  coinPunchScale: 1.08
+  coinPunchDuration: 0.18
+  hapticStrength: 1
+  hapticGuard: 0.05
+  hapticEditorLog: 1
+  hapticOnDrop: 1
+  hapticDropIntensity: 0.22
+  hapticOnMerge: 1
+  hapticMergeIntensityLow: 0.3
+  hapticMergeIntensityHigh: 0.6
+  hapticMergeDuration: 0.025
+  hapticComboMinCombo: 2
+  hapticComboIntensityStep: 0.15
+  hapticComboDurationStep: 0.012
+  hapticComboLegendaryDouble: 1
+  hapticMaxTierStrength: 1
+  hapticChewIntensity: 0.28
+  hapticChewInterval: 0.11
+  hapticChewDuration: 0.016
+  hapticEatenIntensity: 0.75
+  hapticEatenDuration: 0.06
+  hapticQuakeMaxIntensity: 1
+  hapticQuakePulseInterval: 0.07
+  hapticQuakeMinLevel: 0.08
+  hapticGameOverStrength: 1
+  hapticStarIntensity: 0.45
+  hapticNewRecordStrength: 0.85
+  coinBurstCount: 14
+  coinBurstOriginYRatio: 0.06
+  coinBurstSpread: 170
+  coinBurstStagger: 0.045
+  coinBurstSpinSpeed: 220
+  coinBurstSizeJitter: 0.25
+  confettiPoolSize: 140
+  confettiSize: 64
+  confettiSizeJitter: 0.3
+  confettiLifetime: 3.2
+  confettiFadeRatio: 0.18
+  confettiGravity: 1600
+  confettiDrag: 2.2
+  confettiDragJitter: 0.45
+  confettiSpinSpeed: 540
+  confettiFlutterSpeed: 230
+  confettiFlutterFrequency: 3.2
+  confettiFlutterJitter: 0.5
+  confettiTumbleSpeed: 2.1
+  confettiTumbleMinScale: 0.15
+  confettiBurstCount: 26
+  confettiBurstSpeedMin: 1100
+  confettiBurstSpeedMax: 2000
+  confettiBurstUpBias: 0.55
+  confettiRainCount: 110
+  confettiRainDuration: 1.8
+  confettiRainSpeedMin: 120
+  confettiRainSpeedMax: 520
+  confettiRainTopMargin: 60
+  confettiRainTopSpread: 450
+  confettiRainDelayJitter: 0.7
+  confettiRainDrift: 260

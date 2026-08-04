@@ -54,12 +54,32 @@ public class FruitPool : MonoBehaviour, IPrewarmSource
         PrewarmQueue.Register(this);
     }
 
+    void OnEnable()
+    {
+        GameEvents.OnGameOver += HandleGameOver;
+    }
+
+    void OnDisable()
+    {
+        GameEvents.OnGameOver -= HandleGameOver;
+    }
+
     void OnDestroy()
     {
         PrewarmQueue.Unregister(this);
         if (Instance == this) Instance = null;
         _pool?.Dispose();
     }
+
+    /// <summary>
+    /// Oyun bitti: tahta olduğu gibi kalsın. Eskiden fizik çalışmaya devam ediyordu ve
+    /// sonuç ekranı açıkken yığın arkada kaymaya, yerleşmeye, hatta birleşmeye devam
+    /// ediyordu.
+    ///
+    /// Aboneliği tahtanın sahibi olan havuz taşıyor: aktif meyve listesi burada, başka
+    /// bir sistemin bu listeyi dolaşması için ödünç alması gerekirdi.
+    /// </summary>
+    void HandleGameOver(int finalScore) => FreezeAll();
 
     Fruit CreateFruit()
     {
@@ -110,6 +130,17 @@ public class FruitPool : MonoBehaviour, IPrewarmSource
     {
         for (int i = _active.Count - 1; i >= 0; i--)
             _pool.Release(_active[i]);
+    }
+
+    /// <summary>
+    /// Tahtadaki bütün meyveleri oldukları yerde dondurur (bkz. <see cref="Fruit.Freeze"/>).
+    /// Geri alma yolu yok — çözülme havuz döngüsünde kendiliğinden oluyor: yeni oyunda
+    /// meyveler havuza dönüp yeniden doğuyor.
+    /// </summary>
+    public void FreezeAll()
+    {
+        for (int i = 0; i < _active.Count; i++)
+            if (_active[i] != null) _active[i].Freeze();
     }
 
     /// <summary>

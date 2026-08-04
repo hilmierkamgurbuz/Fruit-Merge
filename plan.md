@@ -21,6 +21,8 @@
 | **7a** Landing/menü | *Öne alındı.* `GameState.Menu` artık kullanılıyor: `Boot → Menu → Playing`. `MenuPanel` (logo, meyve yığını, bulutlar, PLAY), iki panelde MENU butonu aktif, `Restart()` sahne yüklemiyor | [Faz 7](#faz-7--müzik--ekran-akışı) |
 | **6** HUD cilası | Evrim zinciri (11 meyve + idle yüz, tek sıra, kaymadan), combo popup (HUD'dan kaldırıldı, dünya-uzayında meyve renginde). Danger vinyeti ve bitmap skor fontu **yapılmayacak** (K5/K6) | [Faz 6](#faz-6--hud-cilası) |
 | **7c** Splash | *Öne alındı.* `SplashPanel`, `Boot`'ta yükleme çubuğunu **gerçek havuz ısıtmasıyla** dolduruyor, sonra `GoToMenu()`. Menü ile aynı zemin, çakışmasız geçiş. İlk sürüm reddedildi | [Faz 7c](#faz-7c--splash) |
+| **—** Coin patlaması + konfeti | *Faz değil.* Ödül coin'leri artık yıldız/meyve üstünden değil **ekranın ortasından** kalkan, dönen, kademeli iki patlama olarak cüzdana akıyor (`SpawnBurst`, toplam değer birebir korunuyor). Bütün coin görselleri `particle_coin`'de birleşti (uçan para, mağaza satın alma ikonu, cüzdan rozeti). `ConfettiDirector`: karpuzda birleşme noktasında patlama, rekorda yukarıdan yağmur. İkisi de **UI uzayında** particle sistemi — Screen Space Overlay canvas'lar dünya parçacıklarının üstüne kompozit edildiği için gerçek `ParticleSystem` panelin arkasında kalıyordu | — |
+| **—** Titreşim | *Faz değil, borç kapandı.* `HapticService` (yönetmen) + `HapticDevice` (Android `Vibrator`/`VibrationEffect`, iOS `UIImpactFeedbackGenerator` native eklentisi). `Handheld.Vibrate` KULLANILMADI — şiddet/süre kademesi yok. Kancalar: bırakma, birleşme (tier'a göre), combo (popup'la aynı 4 kademe, efsanede çift vuruş), karpuz, deprem (zarfa bağlı darbe treni), kurt kemirmesi + yutma, oyun sonu, yıldız, rekor. Android izni derleme sonrası manifest'e enjekte ediliyor | — |
 
 ---
 
@@ -250,6 +252,7 @@
 |---|---|---|---|
 | **Boost altyapısı** | 15 güçlendirme: bomba, çekiç, dondurma, mıknatıs, gökkuşağı, karıştır, takas, geri al, yükselt, küçült, sil, satır temizle, yavaşlat, çift puan, ekstra can | `BoostDefinition` SO, envanter + kayıt, hedefleme modu (`target_crosshair`, `target_dim_overlay`), cooldown, HUD tepsisi. **15'ini birden yapma** — dikey dilim tek bir boost'la, mimari oturunca gerisi tekrar | ~250 dosya hazır |
 | **`worms` boost'u** ⭐ | *Yeni.* Tatlı kurtçuklar ekran kenarlarından sürünüp seçilen meyveyi yiyor, meyve renginde sis kaplıyor | **✅ KODLANDI, Play Mode testi bekliyor.** Faz 8'in dikey dilimi. 3 yeni script + EffectDirector'e sis + HUD butonu + sahne kurulumu. Ses ve envanter kaydı bilerek dışarıda. Detay: **[`plan_boost_worms.md`](plan_boost_worms.md)** | 9 PNG üretildi ve import edildi; sis/kırıntı/hedefleme mevcut art'tan |
+| **`quake` boost'u** ⭐ | *Yeni.* Deprem: ekran sarsılır, tüm meyvelere küçük itmeler uygulanır, yığın yeniden yerleşir ve sıkışık meyveler kendiliğinden birleşir. **Hiçbir meyve silinmiyor** | **✅ KODLANDI + ART/SES İMPORT EDİLDİ, Play Mode testi bekliyor.** Faz 8'in ikinci dikey dilimi — `worms` "sil", bu "karıştır" deseni. `BoostGate` + `IBoostDirector` + `BoostId` ile altyapı tekilleştirildi (`DropController`/`GameOverDetector`'daki hard-coded kontroller ve `BoostButton` artık boost başına çoğalmıyor). Yeni `CameraShaker` (projede ilk kamera sarsıntısı) ve `SaveService.VibrationOn`'un ilk tüketicisi. Kutu/collider/yerçekimi **dokunulmadı**. Detay: **[`plan_boost_quake.md`](plan_boost_quake.md)** | **6 PNG + 2 ses üretildi ve import edildi.** `quake_ground_crack` iki üretici artefaktı (pembe kayma + gri tül) için ton düzeltmesinden geçti; `quake_pebble` henüz kullanılmıyor. Çakma/buton durumları/yüzler mevcut art'tan |
 | **`undo` boost'u** | Son hamleyi geri alma | En zoru: tüm meyvelerin pozisyon/hız/tier'ı + skorun snapshot'ı. Havuz mimarisi kolaylaştırıyor ama ayrı tasarım işi | `boost_undo*`, `undo_ghost`, `undo_trail_arrow` |
 | **Devam teklifi** | Kaybedince boost harcayıp devam etme | Sonuç ekranında `continue_boost_prompt`. Panelde yeri şu an boş | `continue_boost_prompt` |
 
@@ -268,7 +271,7 @@ yukarıdaki notlara ve K5/K6'ya bak.)*
 
 | | Başlangıç | Şimdi |
 |---|---|---|
-| Script | 18 dosya | **30 dosya** |
+| Script | 18 dosya | **40 dosya** |
 | Prefab | 1 (`Fruit.prefab`, child'ı yok) | 1 (`Fruit.prefab` + `Face` child'ı) |
 | Sahne | `Game.unity` + gereksiz `SampleScene` | `Game.unity` (SampleScene silindi) |
 | Art | 477 PNG — **25**'i bağlı | 478 PNG — **100**'ü bağlı, 378 bekliyor |
@@ -810,7 +813,6 @@ Bir faza ait olmayan, biriken küçük işler. Hiçbiri acil değil.
 
 | Borç | Sorun | Çözüm |
 |---|---|---|
-| **Titreşim** | Pause panelinde toggle var, ayar kaydediliyor, ama `Handheld.Vibrate` çağıran kod yok — buton hiçbir şey yapmıyor | Birleşme / oyun sonu gibi anlara haptik ekle, `SaveService.VibrationOn`'a bak |
 | **Müzik toggle'ı** | Aynı durum: ayar kaydediliyor, çalacak müzik yok | Faz 7b ile birlikte çözülür |
 | **Menü bulutları** | `landing_cloud_01..03` eski art. Yeni logo ve meyve yığını yanında stil olarak sırıtıyor | Yenile ya da kaldır |
 | **`gameover_mascot_sad`** | Faz 4'te opsiyoneldi, eklenmedi | Sonuç ekranının sol altına eklenebilir |
@@ -818,6 +820,10 @@ Bir faza ait olmayan, biriken küçük işler. Hiçbiri acil değil.
 | **Menüde logo yok** | `landing_logo` sadece splash'ta; `MenuPanel`'in 7 çocuğu `Background`, `Cloud1..4`, `FruitPile`, `PlayButton` — logo hiç eklenmemiş | Menüye de eklenecekse splash'taki ölçüyü (880 × 447.72) kullan |
 | **`MenuPanel` layer 0** | `GameOverPanel`/`PausePanel`/`SplashPanel` UI layer'ında (5), `MenuPanel` ve tüm çocukları Default (0)'da | Overlay canvas'ta çizimi etkilemiyor, ama tutarsız — 5'e alınabilir |
 | **`hud_dropper_guide`** | 15 parçaya dilimlenmiş, düzeltilmedi. Kullanılan `hud_dropper_guide_dash_tile`, o sağlam | Kullanılacaksa `Single`'a çevir |
+| **`Baloo2-* SDF Outline` materyalleri** | Üçünde de `_OutlineWidth 0.25` + kahverengi `_OutlineColor` ayarlı ama shader'ın **`OUTLINE_ON` keyword'ü kapalı** → kontur HİÇ render edilmiyor. `Baloo2-Bold SDF Outline` HUD'daki `ScoreText` tarafından kullanılıyor, yani skorun kahverengi konturu bugüne kadar hiç görünmedi. (`PermanentMarker-Regular SDF Outline` doğru kurulmuş, combo popup'ın konturu çalışıyor) | `mat.EnableKeyword("OUTLINE_ON")` — tek satır, ama HUD'ın görünümünü değiştirir, karar gerekiyor |
+| **`gameover_banner`** | Sonuç ekranının başlığı artık TMP metni ("OVERFLOWING", harf harf meyve renkleri + beyaz kontur), iki satırlık kırmızı "GAME OVER" görseli kullanılmıyor | Bırak ya da sil |
+| **Eski coin artları** | `hud_coin_reward_10/20/30` ve `icon_coin_gold` artık hiçbir yerde kullanılmıyor — hepsi `particle_coin` ile değişti. Parlak/3B stilleri zaten oyunun konturlu çizgi stiline uymuyordu | Bırak ya da sil |
+| **`panel_coin_badge` pişmiş coin** | Rozetin sol ucundaki coin sanata gömülü ve rozet 800×320'den 320×103'e çekildiği için yatayda 1.24× eziliyor. Üstüne oturan `particle_coin` aynı elipsle (97×80) kapatıldı | Kalıcı çözüm: rozet PNG'sinden coin'i silmek |
 | **`combo.wav`** | Projede duruyor, artık çalmıyor — zincir sesi istenmedi, her halka kendi `merge.wav`'ını çalıyor | Bırak ya da sil |
 | **`Effects/Merge` 16 dosya** | Flipbook yaklaşımı reddedildiği için hiçbiri kullanılmıyor | Faz 8'de boost efektleri için değerlendirilebilir |
 | **Dal / HUD teması** | Dalı en uca sürükleyince next meyve köşedeki skor panelinin altından geçiyor | Bilinçli kabul edildi. Tam kurtulmak için `dropY` 2.9'a inmeli, oynama alanı yarıya düşerdi |

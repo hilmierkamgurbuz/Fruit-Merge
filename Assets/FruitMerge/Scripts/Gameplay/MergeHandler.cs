@@ -45,6 +45,25 @@ public class MergeHandler : MonoBehaviour
     
     void LateUpdate()
     {
+        // Oyun oynanmıyorsa kuyruk işlenmez ve boşaltılır.
+        //
+        // Oyun sonu karesinde şu sıra oluyordu: GameOverDetector Update'te oyunu bitiriyor,
+        // FruitPool tahtayı donduruyor, ardından BU LateUpdate sıraya girmiş birleşmeyi
+        // işliyordu. Üretilen meyve Drop() çağırdığı için simülasyona geri dönüyor ve
+        // sonuç ekranı açıkken tek başına düşüyordu — üstelik skor da oyun bittikten
+        // sonra artıyordu.
+        //
+        // Kuyruğu boşaltmak kayıp değil: pause'dan dönüşte temas hâlâ sürüyorsa
+        // OnCollisionStay2D isteği yeniden koyuyor.
+        if (GameManager.Instance == null || !GameManager.Instance.IsPlaying)
+        {
+            if (_queue.Count > 0) _queue.Clear();
+
+            _queuedPairs.Clear();
+
+            return;
+        }
+
         int guard = 0;
         while (_queue.Count > 0 && guard++ < 100)
         {
@@ -86,7 +105,10 @@ public class MergeHandler : MonoBehaviour
         }
         Fruit spawned = _pool.Spawn(next,  spawnPos);
             
-        spawned.Drop();
+        // byPlayer: false — bu meyve birleşmeden doğdu. Yüzlerin bakış hedefi
+        // oyuncunun bıraktığı meyveyi hızlanmasını beklemeden takip ediyor; birleşme
+        // ürünü de aynı ayrıcalığı alsaydı her birleşme bakışı kendine çekerdi.
+        spawned.Drop(false);
         spawned.PlayPop();
 
         // Üretilen meyve aşık olur. Olay imzası meyve instance'ı taşımadığı için burada

@@ -27,9 +27,18 @@ public class Fruit : MonoBehaviour
     public bool IsMerging { get; set; }
     
     public bool IsDropped { get; private set; }
-    
+
     public float DropTime { get; private set; }
-    
+
+    /// <summary>
+    /// Bu meyve oyuncunun elinden mi düştü, yoksa birleşmeden mi doğdu. İkisi de
+    /// <see cref="Drop"/> çağırıp aynı <see cref="DropTime"/>'ı alıyor, ama
+    /// <see cref="FaceDirector"/>'ün bakış hedefi için aralarındaki fark önemli:
+    /// oyuncunun bıraktığı meyve hızlanmasını beklemeden takip edilirken, birleşme
+    /// ürününün bakışı kapmaması gerekiyor.
+    /// </summary>
+    public bool WasPlayerDropped { get; private set; }
+
     public Rigidbody2D Body => _rb;
     public float Radius => _col.radius * _targetScale;
     public float TopY => transform.position.y + _col.offset.y * _targetScale + Radius;
@@ -80,6 +89,7 @@ public class Fruit : MonoBehaviour
         IsMerging = false;
         IsDropped = false;
         DropTime = 0f;
+        WasPlayerDropped = false;
         _slowFrames = 0;
         _popTimer = -1f;
         _squashTimer = -1f;
@@ -101,6 +111,7 @@ public class Fruit : MonoBehaviour
         IsMerging  = false;
         IsDropped  = false;
         DropTime   = 0f;
+        WasPlayerDropped = false;
         _slowFrames = 0;
         _popTimer  = -1f;
         _squashTimer = -1f;
@@ -111,10 +122,19 @@ public class Fruit : MonoBehaviour
         if (_face != null) _face.ResetFace();
     }
 
-    public void Drop()
+    /// <summary>
+    /// Meyveyi fiziğe teslim eder.
+    /// </summary>
+    /// <param name="byPlayer">
+    /// Oyuncu mu bıraktı. Varsayılan YOK, iki çağıran da açıkça söylüyor:
+    /// <see cref="DropController"/> <c>true</c>, <see cref="MergeHandler"/> <c>false</c>.
+    /// Bir gün üçüncü bir çağıran eklenirse sessizce "oyuncu bıraktı" sayılmasın.
+    /// </param>
+    public void Drop(bool byPlayer)
     {
         IsDropped = true;
         DropTime = Time.time;
+        WasPlayerDropped = byPlayer;
 
         if (_config != null)
         {
@@ -127,6 +147,28 @@ public class Fruit : MonoBehaviour
         {
             _rb.angularVelocity = Random.Range(-_config.dropSpin, _config.dropSpin);
         }
+    }
+
+    /// <summary>
+    /// Meyveyi olduğu yerde dondurur: hızları sıfırlanır ve gövde simülasyondan çıkar.
+    ///
+    /// Oyun sonunda gerekiyor. <c>Time.timeScale = 0</c> yerine bu yol seçildi çünkü
+    /// timeScale sonuç ekranını da dondurmuyor ama <see cref="FruitFace"/> geçişlerini
+    /// (<c>Time.deltaTime</c> ile ilerliyorlar) ve meyve suyu parçacıklarını donduruyordu:
+    /// yüzler dizzy/squish ifadesine geçemeden yarı yolda kalıyordu. Burada sadece FİZİK
+    /// susuyor, animasyonlar normal akmaya devam ediyor.
+    ///
+    /// <c>simulated = false</c> collider'ı da devre dışı bırakıyor — yani oyun bittikten
+    /// sonra artık birleşme de tetiklenmiyor, ki istenen de bu.
+    ///
+    /// Havuz açısından güvenli: <see cref="ResetState"/> ve <see cref="Initialize"/> zaten
+    /// <c>simulated = false</c> ile başlıyor, <see cref="Drop"/> tekrar açıyor.
+    /// </summary>
+    public void Freeze()
+    {
+        _rb.linearVelocity  = Vector2.zero;
+        _rb.angularVelocity = 0f;
+        _rb.simulated       = false;
     }
 
     public void PlayPop()

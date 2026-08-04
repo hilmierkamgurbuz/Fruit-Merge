@@ -22,6 +22,7 @@ MonoBehaviour:
   colliderRadius: 0.4455
   colliderOffset: {x: 0, y: -0.02}
   score: 55
+  coinReward: 20
   nextTier: {fileID: 11400000, guid: a13d44e744b1a4aaabdc053cf5404e63, type: 2}
   countForGameOver: 1
   mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}

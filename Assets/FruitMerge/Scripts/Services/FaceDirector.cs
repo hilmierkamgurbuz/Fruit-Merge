@@ -61,6 +61,12 @@ public class FaceDirector : MonoBehaviour
     float _lineY;
 
     /// <summary>
+    /// Deprem boost'u oynuyor mu. Doluyken tahtanın TAMAMI <c>Surprised</c> oluyor.
+    /// <see cref="_boostFocus"/> gibi tek bir hedef yok — sarsılan şey her şey.
+    /// </summary>
+    bool _quakeMood;
+
+    /// <summary>
     /// Kurtçuk boost'unun hedefi. Doluyken tahtanın tamamı bu meyveyi seyrediyor:
     /// hedef <c>scared</c>, diğerleri <c>surprised</c> ve hepsinin bakışı orada.
     /// Yüzleri dışarıdan <c>Express</c> ile zorlamak yerine burada tutuluyor —
@@ -142,9 +148,37 @@ public class FaceDirector : MonoBehaviour
         _moodTimer = 0f;
     }
 
+    /// <summary>
+    /// Deprem modu. Açıkken bütün meyveler <c>Surprised</c> olup <b>kendi hareket yönlerine</b>
+    /// bakıyor (bkz. <see cref="TickFaces"/>). Tek hedefli <see cref="SetBoostFocus"/>'un
+    /// aksine burada odaklanılacak bir meyve yok; bu yüzden ayrı bir bayrak, ama aynı öncelik
+    /// katmanında duruyor — oyun sonu ve meyvenin kendi <c>Express</c> kilidi bunu hâlâ eziyor.
+    /// </summary>
+    public void SetQuakeMood(bool active)
+    {
+        if (_quakeMood == active) return;
+
+        _quakeMood = active;
+
+        // deprem bir anda başlıyor, bir sonraki 10 Hz turunu bekleme
+        _moodTimer = 0f;
+    }
+
     // ---------------------------------------------------------------- olaylar
 
-    void HandleFruitDropped(FruitDefinition def) => _lastActivityTime = Time.time;
+    /// <summary>
+    /// Bırakma anı. İfade kararı normalde 10 Hz'te dönüyor ama bakış hedefinin
+    /// devri BEKLEYEMEZ: karar turunu kaçıran bırakmada yüzler 100 ms'ye kadar eski
+    /// hedefe (artık var olmayan parmaktaki meyveye) bakıp merkeze kayıyordu.
+    /// Sayacı sıfırlamak bir sonraki karede yeniden değerlendirmeyi zorluyor —
+    /// <see cref="SetBoostFocus"/> ile aynı yöntem.
+    /// </summary>
+    void HandleFruitDropped(FruitDefinition def)
+    {
+        _lastActivityTime = Time.time;
+
+        _moodTimer = 0f;
+    }
 
     void HandleMerged(FruitDefinition produced, Vector2 position)
     {
@@ -203,6 +237,7 @@ public class FaceDirector : MonoBehaviour
         _lookTarget = null;
         _hasPendingX = false;
         _boostFocus = null;
+        _quakeMood = false;
     }
 
     // ----------------------------------------------------------------- döngü
@@ -265,7 +300,21 @@ public class FaceDirector : MonoBehaviour
             // itip sürekli hareket ediyor ve bakış hedefini kalıcı olarak çalıyorlardı.
             if (now - f.DropTime > _config.faceFallFollowTime) continue;
 
-            if (f.Body.linearVelocity.y > -_config.faceFallSpeedThreshold) continue;
+            // Hız kapısı, OYUNCUNUN bıraktığı meyvenin ilk anlarında uygulanmıyor.
+            // Meyve duruyorken bırakılıyor; yerçekiminin eşiğe ulaşması ~0.15 sn sürüyor
+            // ve o pencerede meyve "düşen" sayılmıyordu. Yeni bekleyen meyve de hemen
+            // doğmadığı için (DropController düşen uzaklaşana kadar bekletiyor) bakış
+            // hedefi tamamen boşa düşüyor, bütün yüzler merkeze kayıp sonra takibe
+            // geri dönüyordu.
+            //
+            // WasPlayerDropped şart: birleşmeden doğan meyve de Drop() çağırıp aynı
+            // DropTime'ı alıyor. Muafiyeti ona da versek her birleşme bakışı kendine
+            // çekerdi — oysa hız kapısı tam olarak onları elemek için var.
+            bool justReleased = f.WasPlayerDropped &&
+                                now - f.DropTime <= _config.faceFallGrace;
+
+            if (!justReleased &&
+                f.Body.linearVelocity.y > -_config.faceFallSpeedThreshold) continue;
 
             if (f.DropTime <= newest) continue;
 
@@ -332,6 +381,10 @@ public class FaceDirector : MonoBehaviour
                     ? FaceExpression.Scared
                     : FaceExpression.Surprised);
             }
+            // Deprem: kimse kutlamıyor, kimse uyuklamıyor — hepsi şaşkın.
+            // Boost odağının hemen ALTINDA çünkü ikisi aynı anda olamaz (BoostGate engelliyor);
+            // yine de bir sıra gerekiyorsa hedefli boost daha spesifik olan.
+            else if (_quakeMood)                          face.SetExpression(FaceExpression.Surprised);
             // K1: kutlama danger'ı bastırır
             else if (celebrating)                         face.SetExpression(FaceExpression.Happy);
             else if (danger == FaceDangerState.Scared)    face.SetExpression(FaceExpression.Scared);
@@ -389,6 +442,12 @@ public class FaceDirector : MonoBehaviour
 
         Vector2 focusPos = hasFocus ? (Vector2)_boostFocus.position : default;
 
+        // Deprem bakış eşiği döngünün DIŞINDA bir kez kareleniyor — meyve başına
+        // çarpma yapmaya gerek yok (kural 11)
+        float quakeLookMinSqr = _quakeMood
+            ? _config.quakeLookMinSpeed * _config.quakeLookMinSpeed
+            : 0f;
+
         for (int i = 0; i < active.Count; i++)
         {
             Fruit f = active[i];
@@ -407,6 +466,20 @@ public class FaceDirector : MonoBehaviour
                 {
                     if (f.transform == _boostFocus) face.ClearLook();
                     else                            face.SetLookPoint(focusPos);
+                }
+                // Deprem: her meyve KENDİ gittiği yöne bakıyor. Yön director'den değil
+                // meyvenin gerçek hızından okunuyor — böylece her meyve bağımsız ve bakışlar
+                // hareket değiştikçe kendiliğinden değişiyor. Bakış zaten faceLookSpeed ile
+                // yumuşatıldığı için hızın gürültüsü göze titreme olarak yansımıyor.
+                // SetLookPoint deltayı normalize ediyor, o yüzden 1 birim mesafe yeter.
+                else if (_quakeMood)
+                {
+                    Vector2 vel = f.Body.linearVelocity;
+
+                    if (vel.sqrMagnitude > quakeLookMinSqr)
+                        face.SetLookPoint((Vector2)f.transform.position + vel / vel.magnitude);
+                    else
+                        face.ClearLook();
                 }
                 // korkan/endişeli meyve çizgiye bakar, diğerleri parmaktaki/düşen meyveye
                 else if (face.DangerState != FaceDangerState.None)

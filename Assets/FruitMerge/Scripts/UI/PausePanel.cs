@@ -148,6 +148,11 @@ public class PausePanel : UIPanel
 
         if (AudioService.Instance != null) AudioService.Instance.PlayToggle(next);
 
+        // Ayarı AÇARKEN tek darbe: oyuncu neyi açtığını gözüyle değil parmağıyla onaylasın.
+        // Kapatırken bir şey çalmıyor — zaten kapattı. Sıra önemli: ayar SetVibrationOn ile
+        // geçmiş olmalı, yoksa servis isteği kapalı sanıp yutar.
+        if (next && HapticService.Instance != null) HapticService.Instance.PlaySettingConfirm();
+
         RefreshIcons();
     }
 

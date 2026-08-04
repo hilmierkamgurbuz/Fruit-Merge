@@ -48,6 +48,27 @@ public class AudioService : MonoBehaviour
     [SerializeField] AudioClip _toggleOnSfx;
     [SerializeField] AudioClip _toggleOffSfx;
 
+    [Header("Boost — deprem")]
+    [Tooltip("t=0'daki keskin zemin çatlaması / tok darbe (~0.3 sn)")]
+    [SerializeField] AudioClip _quakeCrackSfx;
+
+    [Tooltip("alçak gürültü. LOOP'lanıyor ve sesi depremin sarsıntı zarfından sürülüyor — " +
+             "bu yüzden klibin süresi önemli değil, döngülenebilir kısa bir kayıt yeterli")]
+    [SerializeField] AudioClip _quakeRumbleSfx;
+
+    [Tooltip("gürültünün en yüksek sesi (0-1). Diğer SFX'lerin altında kalsın, " +
+             "merge sesleri gürültünün içinde kaybolmasın")]
+    [Range(0f, 1f)] [SerializeField] float _quakeRumbleVolume = 0.55f;
+
+    [Header("Müzik")]
+    [Tooltip("arka plan müziği. LOOP'lanıyor ve SFX havuzundan tamamen AYRI bir kanalda çalıyor.\n\n" +
+             "⚠️ Import ayarı SFX'ten FARKLI olmalı: Streaming + Vorbis. SFX ayarını (Decompress " +
+             "On Load + PCM) verirsen 64 sn'lik klip RAM'de ~10 MB'ı aşıyor")]
+    [SerializeField] AudioClip _musicClip;
+
+    [Tooltip("müziğin sesi. SFX'in altında kalmalı — müzik zemin, efektler ön planda")]
+    [Range(0f, 1f)] [SerializeField] float _musicVolume = 0.4f;
+
     [Header("Seviye")]
     [Tooltip("tüm SFX'in ortak çarpanı. Klip seviyeleri dosyaların içinde hazır — 1'de bırak")]
     [Range(0f, 1f)] [SerializeField] float _masterVolume = 1f;
@@ -69,6 +90,25 @@ public class AudioService : MonoBehaviour
 
     AudioSource[] _sources;
     int _next;
+
+    /// <summary>
+    /// Gürültünün KENDİ kanalı. Havuzdaki 6 kanal "çal ve unut" — round-robin oldukları için
+    /// bir sonraki ses gürültünün üstüne yazardı. Gürültü ise sürekli çalıp sesi her karede
+    /// değişen tek ses, o yüzden ayrı duruyor.
+    /// </summary>
+    AudioSource _rumbleSource;
+
+    /// <summary>
+    /// Müziğin KENDİ kanalı. Havuzdaki 6 SFX kanalı round-robin çalıştığı için müzik oraya
+    /// konsa bir sonraki efekt onun üstüne yazardı. Ayrıca müziğin sesi SFX'ten bağımsız
+    /// ayarlanıyor ve ayardan kapatılıp açılabiliyor.
+    /// </summary>
+    AudioSource _musicSource;
+
+    bool _musicEnabled = true;
+
+    /// <summary>Müzik bir kez başladı mı — açıp kapatmak parçayı baştan başlatmasın diye.</summary>
+    bool _musicStarted;
 
     // ayarlardan gelen aç/kapa. Kapalıyken Play() hiç iş yapmadan döner.
     bool _sfxEnabled = true;
@@ -99,6 +139,7 @@ public class AudioService : MonoBehaviour
         GameEvents.OnMaxTierMerged += HandleMaxTierMerged;
         GameEvents.OnGameOver      += HandleGameOver;
         GameEvents.OnSettingsChanged += HandleSettingsChanged;
+        GameEvents.OnQuakeStarted  += HandleQuakeStarted;
     }
 
     void OnDisable()
@@ -110,6 +151,7 @@ public class AudioService : MonoBehaviour
         GameEvents.OnMaxTierMerged -= HandleMaxTierMerged;
         GameEvents.OnGameOver      -= HandleGameOver;
         GameEvents.OnSettingsChanged -= HandleSettingsChanged;
+        GameEvents.OnQuakeStarted  -= HandleQuakeStarted;
     }
 
     // Awake'te değil Start'ta: SaveService.Awake'in kaydı yüklemesini beklemeliyiz
@@ -126,7 +168,40 @@ public class AudioService : MonoBehaviour
     {
         if (SaveService.Instance == null) return;
 
-        _sfxEnabled = SaveService.Instance.SfxOn;
+        _sfxEnabled   = SaveService.Instance.SfxOn;
+        _musicEnabled = SaveService.Instance.MusicOn;
+
+        ApplyMusicState();
+    }
+
+    /// <summary>
+    /// Müziği ayara göre çalıştırır/duraklatır. <c>Stop</c> değil <c>Pause</c> kullanılıyor:
+    /// oyuncu müziği kapatıp açtığında parça baştan başlamasın, kaldığı yerden devam etsin.
+    /// </summary>
+    void ApplyMusicState()
+    {
+        if (_musicSource == null || _musicClip == null) return;
+
+        _musicSource.volume = Mathf.Clamp01(_musicVolume);
+
+        if (!_musicEnabled)
+        {
+            if (_musicSource.isPlaying) _musicSource.Pause();
+            return;
+        }
+
+        if (_musicSource.isPlaying) return;
+
+        if (_musicStarted)
+        {
+            _musicSource.UnPause();
+        }
+        else
+        {
+            _musicSource.clip = _musicClip;
+            _musicSource.Play();
+            _musicStarted = true;
+        }
     }
 
     void BuildSources()
@@ -150,6 +225,30 @@ public class AudioService : MonoBehaviour
 
             _sources[i] = src;
         }
+
+        var rumbleGo = new GameObject("SFX_QuakeRumble");
+        rumbleGo.transform.SetParent(transform, false);
+
+        _rumbleSource = rumbleGo.AddComponent<AudioSource>();
+
+        _rumbleSource.playOnAwake  = false;
+        _rumbleSource.loop         = true;      // süre depremden geliyor, klipten değil
+        _rumbleSource.spatialBlend = 0f;
+        _rumbleSource.dopplerLevel = 0f;
+        _rumbleSource.ignoreListenerPause = true;
+        _rumbleSource.volume       = 0f;
+
+        var musicGo = new GameObject("Music");
+        musicGo.transform.SetParent(transform, false);
+
+        _musicSource = musicGo.AddComponent<AudioSource>();
+
+        _musicSource.playOnAwake  = false;
+        _musicSource.loop         = true;      // kesintisiz zemin
+        _musicSource.spatialBlend = 0f;
+        _musicSource.dopplerLevel = 0f;
+        _musicSource.ignoreListenerPause = true;
+        _musicSource.volume       = 0f;
     }
 
     // ---------------------------------------------------------------- olaylar
@@ -164,6 +263,20 @@ public class AudioService : MonoBehaviour
     // çalıyordu; istenmedi. Zincirin her halkası kendi merge sesini kendi tier pitch'iyle
     // çalıyor — bunun duyulabilmesi için merge'e ayrı ve çok kısa bir guard verildi.
     void HandleGameOver(int finalScore) => PlayGameOver();
+
+    /// <summary>
+    /// Deprem başladı: çatlama sesi + gürültü döngüsü. Gürültünün SESİ burada ayarlanmıyor —
+    /// <see cref="SetQuakeRumbleLevel"/> ile depremin sarsıntı zarfından sürülüyor, böylece
+    /// duyulan şiddet görülen şiddetle birebir aynı oluyor.
+    ///
+    /// Titreşim artık burada değil: aynı olayı <see cref="HapticService"/> de dinliyor ve
+    /// deprem boyunca zarfa bağlı bir darbe treni sürüyor.
+    /// </summary>
+    void HandleQuakeStarted()
+    {
+        PlayQuakeCrack();
+        StartQuakeRumble();
+    }
 
     // ------------------------------------------------------------- genel API
 
@@ -193,6 +306,45 @@ public class AudioService : MonoBehaviour
     public void PlayToggle(bool on) => Play(on ? _toggleOnSfx : _toggleOffSfx, 1f);
 
     public void SetMasterVolume(float volume) => _masterVolume = Mathf.Clamp01(volume);
+
+    // -------------------------------------------------------------- deprem sesi
+
+    public void PlayQuakeCrack() => Play(_quakeCrackSfx, Jitter(1f));
+
+    /// <summary>Gürültü döngüsünü sessizden başlatır. Şiddeti <see cref="SetQuakeRumbleLevel"/> veriyor.</summary>
+    public void StartQuakeRumble()
+    {
+        if (_rumbleSource == null || _quakeRumbleSfx == null || !_sfxEnabled) return;
+
+        _rumbleSource.clip   = _quakeRumbleSfx;
+        _rumbleSource.volume = 0f;
+        _rumbleSource.Play();
+    }
+
+    /// <summary>
+    /// Gürültünün o andaki şiddeti (0-1) — deprem director'ü her karede sarsıntı zarfını
+    /// buraya yazıyor. Ayrı bir fade kodu yok: zarf zaten yumuşak iniyor.
+    /// </summary>
+    public void SetQuakeRumbleLevel(float level01)
+    {
+        if (_rumbleSource == null) return;
+
+        // Kural 3: volume 0-1. Yükseklik farkı klip seviyesinden değil, iki çarpandan geliyor.
+        _rumbleSource.volume = Mathf.Clamp01(level01) * _quakeRumbleVolume * Mathf.Clamp01(_masterVolume);
+    }
+
+    public void StopQuakeRumble()
+    {
+        if (_rumbleSource == null) return;
+
+        _rumbleSource.volume = 0f;
+
+        if (_rumbleSource.isPlaying) _rumbleSource.Stop();
+    }
+
+    // Titreşim buradan taşındı: eski VibrateOnce() Handheld.Vibrate() çağırıyordu, yani
+    // Android'de ~500 ms tam güç tek bir buzz — şiddet/süre/kademe yok. Artık ayrı bir
+    // servis var (HapticService + HapticDevice) ve olayları kendisi dinliyor.
 
     // ----------------------------------------------------------------- çekirdek
 

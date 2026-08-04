@@ -1,6 +1,12 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
+/// <summary>
+/// <b>Execution order 50 — EventSystem'den (0) SONRA.</b> Aynı karede önce UI tıklaması
+/// çözülsün istiyoruz: buton <c>onClick</c>'i çalıştıktan sonra buraya gelindiğinde
+/// <see cref="BoostGate.IsAnyBusy"/> ve <see cref="PointerInput.IsOverUI"/> güncel oluyor.
+/// Sıra tersken PLAY'e basan tık, menü kapanmadan önce bir meyve bırakıyordu.
+/// </summary>
+[DefaultExecutionOrder(50)]
 public class DropController : MonoBehaviour
 {
     [Header("Referanslar")]
@@ -23,6 +29,17 @@ public class DropController : MonoBehaviour
     Fruit _lastDropped;
     bool  _awaitingPending;
     float _pendingWaitTimer;
+
+    /// <summary>
+    /// Bu dokunuşun TAMAMI dünya girdisi sayılmıyor. Kilit BASIŞ anında konuyor,
+    /// bırakma anında değil — bırakmada UI kontrolü yapmak yetmiyordu:
+    ///
+    ///  - PLAY'e basan tıkın bırakılması, menü kapanır kapanmaz ilk meyveyi düşürüyordu.
+    ///  - Boost butonuna basan dokunuş hem butonu tetikleyip hem tahtaya sızıyordu.
+    ///
+    /// Sadece yeni bir BASIŞ temizliyor, yani sızan bırakma hiçbir yolla geçemiyor.
+    /// </summary>
+    bool _gestureBlocked;
 
     void OnEnable()
     {
@@ -59,6 +76,10 @@ public class DropController : MonoBehaviour
         _cooldownTimer = 0f;
         _bufferTimer = 0f;
 
+        // Oyunu başlatan dokunuş (menüdeki PLAY, sonuç ekranındaki RESTART) hâlâ ekranda
+        // olabilir; onun bırakılması ilk meyveyi düşürmesin. Yeni basış bekleniyor.
+        _gestureBlocked = true;
+
         PreparePending();
     }
 
@@ -73,6 +94,7 @@ public class DropController : MonoBehaviour
         _awaitingPending = false;
         _lastDropped = null;
         _bufferTimer = 0f;
+        _gestureBlocked = true;
 
         if (_pool != null) _pool.DespawnAll();
 
@@ -85,10 +107,16 @@ public class DropController : MonoBehaviour
     {
         if (GameManager.Instance == null || !GameManager.Instance.IsPlaying) return;
 
-        // Boost hedef beklerken ya da kurtlar sahnedeyken bırakma yok — aynı dokunuş
-        // hem meyveyi seçip hem yeni meyve bırakmasın.
-        if (WormBoostDirector.Instance != null && WormBoostDirector.Instance.IsBusy)
+        // Herhangi bir boost oynarken bırakma yok — aynı dokunuş hem hedef seçip hem yeni
+        // meyve bırakmasın, ve deprem sırasında yığına yeni meyve eklenmesin.
+        if (BoostGate.IsAnyBusy)
         {
+            // Boost oynarken basışları hiç görmüyoruz, dolayısıyla kilidi de
+            // güncelleyemiyoruz. Boost bittiği anda havada kalan dokunuşun bırakılması
+            // meyve düşürmesin: "boşluğa dokunup kurtçukları iptal et" hareketi tam da
+            // bunu yapıyordu (iptal aynı karede, DropController'dan önce oluyor).
+            _gestureBlocked = true;
+
             TickPendingSpawn();
             return;
         }
@@ -168,35 +196,27 @@ public class DropController : MonoBehaviour
 
     void HandleInput()
     {
-        bool held = false, released = false;
-        Vector2 screenPos = default;
-        int fingerId = -1;
+        // Kilit kararı BASIŞ anında veriliyor ve dokunuş boyunca sabit kalıyor.
+        if (PointerInput.Began) _gestureBlocked = PointerInput.IsOverUI();
 
-        if (Input.touchCount > 0)
-        {
-            Touch t = Input.GetTouch(0);
-
-            screenPos = t.position;
-            fingerId  = t.fingerId;
-
-            held      = t.phase == TouchPhase.Began || t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary;
-            released  = t.phase == TouchPhase.Ended;
-        }
-        else
-        {
-            screenPos = Input.mousePosition;
-            held      = Input.GetMouseButton(0);
-            released  = Input.GetMouseButtonUp(0);
-        }
+        bool held     = PointerInput.Held;
+        bool released = PointerInput.Released;
 
         if (!held && !released) return;
 
-        bool overUI = fingerId >= 0
-            ? EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(fingerId)
-            : EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-        if (overUI) return;
+        if (_gestureBlocked)
+        {
+            // Dokunuş bitti — kilit sadece burada kalkıyor, sıradaki basış serbest.
+            if (released) _gestureBlocked = false;
 
-        Vector3 world = _camera.ScreenToWorldPoint(screenPos);
+            return;
+        }
+
+        // Tahtada başlayıp parmağını HUD'un üstüne kaydıranı da tutuyoruz: meyve
+        // görünmeyen bir yere bırakılmasın.
+        if (PointerInput.IsOverUI()) return;
+
+        Vector3 world = _camera.ScreenToWorldPoint(PointerInput.Position);
 
         float limit = DropLimitX();
 
@@ -231,7 +251,7 @@ public class DropController : MonoBehaviour
 
         _pending.transform.SetParent(_pool.ActiveParent, true);
 
-        _pending.Drop();
+        _pending.Drop(true);
 
         GameEvents.RaiseFruitDropped(_pending.Definition);
 

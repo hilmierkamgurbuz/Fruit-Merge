@@ -39,6 +39,12 @@ public class FruitDefinition : ScriptableObject
     [Tooltip("bir meyve oluşturduğunda verilecek puan")]
     public int score = 4;
     
+    [Tooltip("oyun sonunda bu meyve tahtada kaldıysa kaç coin ödül versin. 0 = ödül yok.\n\n" +
+             "Sadece zincirin tepesindeki birkaç meyveye değer verilmeli — küçük meyveler " +
+             "tahtada onlarca tane kalıyor, hepsi ödül verse hem ekran para yağmuruna " +
+             "döner hem de ödül birleştirmeyi değil beklemeyi teşvik eder")]
+    public int coinReward;
+
     [Tooltip("zincirin bir sonrakşi halkası")]
     public FruitDefinition nextTier;
     
