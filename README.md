@@ -40,10 +40,8 @@ Sakin müzikler, gülen yüzlü meyveler ve elle çizilmiş yumuşak bir görsel
 ## Ekran Görüntüleri
 
 <p align="center">
-  <img src="Assets/Screenshots/screenshot-20260801-115410.png" alt="Ana menü" width="220">
-  <img src="Assets/Screenshots/screenshot-20260801-135510.png" alt="Oynanış" width="220">
-  <img src="Assets/Screenshots/screenshot-20260801-133600.png" alt="Combo efekti" width="220">
-  <img src="Assets/Screenshots/screenshot-20260801-124233.png" alt="Duraklatma menüsü" width="220">
+  <img src="readme_ss.png" alt="Oynanış" width="260">
+  <img src="readme_ss_2.png" alt="Oynanış" width="260">
 </p>
 
 ## Teknik Detaylar
