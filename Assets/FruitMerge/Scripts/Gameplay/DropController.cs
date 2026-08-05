@@ -24,6 +24,11 @@ public class DropController : MonoBehaviour
     float _cooldownTimer;
     float _bufferTimer;
 
+    /// <summary>Şu an dalda bekleyen meyvenin tanımı, bekleyen yoksa <c>null</c>.
+    /// <see cref="RainbowBoostDirector"/> "vazgeç" akışında NEYİ geri koyacağını
+    /// bunun üzerinden öğreniyor — bkz. <see cref="CancelForcedPending"/>.</summary>
+    public FruitDefinition PendingDefinition => _pending != null ? _pending.Definition : null;
+
     // Yeni bekleyen meyve, bırakılan meyve yeterince uzaklaşana kadar bekletiliyor —
     // yoksa düşenin tam tepesinde beliriyor ve üst üste binmiş görünüyor.
     Fruit _lastDropped;
@@ -312,6 +317,24 @@ public class DropController : MonoBehaviour
         _awaitingPending = false;
 
         SpawnPending(def);
+    }
+
+    /// <summary>
+    /// <see cref="ForceNextPending"/>'i geri alır — Rainbow boost'un "vazgeç" akışı
+    /// (Worm'daki <c>Cancel</c> ile aynı fikir: silahlanmak bedava, sadece gerçekten
+    /// kullanmak charge harcıyor).
+    /// </summary>
+    /// <param name="previousDef">
+    /// Boost'a basıldığı AN dalda bekleyen meyvenin tanımı (bkz. <see cref="PendingDefinition"/>,
+    /// çağıran <c>ForceNextPending</c>'den ÖNCE okumuş olmalı). Doluysa aynen geri konur —
+    /// torbaya dokunulmaz. <c>null</c>sa (boost tam <c>_awaitingPending</c> aralığında, dalda
+    /// hiçbir şey yokken kullanıldıysa) normal akışın devam etmesi için <see cref="PreparePending"/>
+    /// tetiklenir — yoksa dalda sonsuza kadar hiç meyve belirmez.
+    /// </param>
+    public void CancelForcedPending(FruitDefinition previousDef)
+    {
+        if (previousDef != null) SpawnPending(previousDef);
+        else                     PreparePending();
     }
 
     void SpawnPending(FruitDefinition def)

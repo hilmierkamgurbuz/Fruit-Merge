@@ -15,7 +15,7 @@ MonoBehaviour:
   tier: 4
   displayName: Rainbow
   sprite: {fileID: -2554161933206395013, guid: e82ab0931b3514da2ba65ad2d5e9d3fb, type: 3}
-  scale: 1
+  scale: 0.883
   tint: {r: 1, g: 1, b: 1, a: 1}
   displayColor: {r: 1, g: 0.25, b: 0.85, a: 1}
   mass: 2
@@ -26,27 +26,6 @@ MonoBehaviour:
   nextTier: {fileID: 0}
   countForGameOver: 1
   isRainbow: 1
-  rainbowFrames:
-  - {fileID: -2554161933206395013, guid: e82ab0931b3514da2ba65ad2d5e9d3fb, type: 3}
-  - {fileID: 2498983120351328399, guid: 54cd6034475764d498443ebfe618f3a9, type: 3}
-  - {fileID: -3562338762014594113, guid: eff0e02c51cab493295d666fe4b3776c, type: 3}
-  - {fileID: 2674041358336023009, guid: 5e8672a02bf7a4287b7baf065ca815da, type: 3}
-  - {fileID: -7888964260510655067, guid: 487583bdbe6bd48f49deaf38d2338415, type: 3}
-  - {fileID: 8521777863705989620, guid: 15cb95164234c47089c633754143c017, type: 3}
-  - {fileID: 7789921585274382295, guid: 42ea6504c8ce346b7b49fe34d563c6d4, type: 3}
-  - {fileID: 3962888907772731761, guid: 89b002cac24df4d899f05cf2b88ec163, type: 3}
-  - {fileID: 5564356293859865690, guid: 471dd4e2288b94d698d5c30225798e74, type: 3}
-  - {fileID: -7747592564639217250, guid: 4a94ee5bec2114829a89dbc0c05c4222, type: 3}
-  - {fileID: 879212516174998806, guid: 0e19380d5957f4f66bcc46ab4612e8c6, type: 3}
-  - {fileID: 7862192156346579737, guid: 51be4733625044f2cb195a8b7a2e4fcf, type: 3}
-  - {fileID: -8248394604428938372, guid: 0a581f6cf8c4846588a25ba80aa094ba, type: 3}
-  - {fileID: 8619539781288047432, guid: 9e390484eb4d8430db4c3ecf5e8e550c, type: 3}
-  - {fileID: 5910419179200094860, guid: fd10960c7f4124cc397d43d800654a4c, type: 3}
-  - {fileID: -8663825211853040994, guid: c36af4bfd73ae4a5db0905e2db8d4220, type: 3}
-  - {fileID: -6864642723903539809, guid: 1b3ef3d1eb00e496fa1f7a7327b80eba, type: 3}
-  - {fileID: 1091140696102709019, guid: 5dd83fcd37b5a42dea105352f8b8647d, type: 3}
-  - {fileID: -5826901208887641686, guid: dc1805e9395cc482f8aa21ccc919109b, type: 3}
-  - {fileID: 7371075670696268190, guid: d61d3ca9f90ab4ebe89c3fc11232a99f, type: 3}
   rainbowGlowFrames:
   - {fileID: -8889304434880267629, guid: 838906c290371485b8f8945930bbbc57, type: 3}
   - {fileID: -2990852781396103037, guid: 54fbf2f286345408d9566f2471a98c5a, type: 3}

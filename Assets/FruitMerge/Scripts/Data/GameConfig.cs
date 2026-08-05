@@ -646,28 +646,11 @@ public class GameConfig : ScriptableObject
 
     // ---------------------------------------------------------------------- boost: rainbow
 
-    [Header("boost — rainbow / pulse")]
-    [Tooltip("joker meyve dalda BEKLERKEN (bırakılmadan önce) en küçük ölçek çarpanı")]
-    public float rainbowPulseMinScale = 0.8f;
-
-    [Tooltip("joker meyve dalda beklerken en büyük ölçek çarpanı")]
-    public float rainbowPulseMaxScale = 1.25f;
-
-    [Tooltip("pulse döngüsünün hızı (Hz — saniyede kaç tam büyü-küçül turu). Bırakma anındaki " +
-             "ANLIK değer kalıcı boyut oluyor (bkz. Fruit.Drop) — yani hız aynı zamanda " +
-             "'ne kadar şansa bağlı' hissini belirliyor. Çok yavaş = oyuncu istediği boyutu " +
-             "seçebiliyor gibi hissettirir, çok hızlı = tamamen rastgele hissettirir")]
-    public float rainbowPulseSpeed = 0.6f;
-
-    [Tooltip("joker meyvenin dönen tekerlek animasyonunun hızı (kare/sn). " +
-             "FruitDefinition.rainbowFrames 20 kare × 18° — 10 kare/sn ≈ 2 saniyede tam tur")]
+    [Header("boost — rainbow / hale")]
+    [Tooltip("joker meyvenin ARKASINDAKİ halenin dönen tekerlek animasyonunun hızı (kare/sn). " +
+             "Gövdenin kendisi artık sabit — sadece hale FruitDefinition.rainbowGlowFrames'i " +
+             "oynatıyor. 20 kare × 18° — 10 kare/sn ≈ 2 saniyede tam tur")]
     public float rainbowFlipbookFps = 10f;
-
-    [Header("boost — rainbow / HUD")]
-    [Tooltip("boost butonuna basınca HUD halkasının (BoostButton._armedGlow) yanık kalma " +
-             "süresi (sn). Rainbow anlık bir boost — hedef beklemiyor, faz yok — o yüzden " +
-             "IsArmed sürekli değil bu kısa 'kullanıldı' parlamasıyla true oluyor")]
-    public float rainbowGlowFlashDuration = 0.35f;
 
     [Header("boost — rainbow / drop göstergesi")]
     [Tooltip("joker meyve dalda beklerken bırakma göstergesindeki noktalar gökkuşağı " +

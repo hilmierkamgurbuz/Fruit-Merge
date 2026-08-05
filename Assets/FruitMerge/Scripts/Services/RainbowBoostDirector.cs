@@ -3,27 +3,30 @@ using UnityEngine;
 /// <summary>
 /// "Rainbow" boost'u — baştan sona.
 ///
-/// Worm/Quake'in aksine ANLIK: hedef seçimi yok, faz yok, animasyon yok. Butona basılınca
-/// dalda bekleyen meyve joker (Rainbow) meyveyle DEĞİŞTİRİLİR — bkz.
-/// <see cref="DropController.ForceNextPending"/>. Onu bırakmak, nereye bırakılacağı,
-/// ne zaman düşeceği — hepsi oyuncuya ve normal <see cref="DropController"/> akışına kalıyor.
+/// Worm'daki gibi ARM/CANCEL/COMMIT ekonomisi, ama hedef seçimi yok: butona basmak dalda
+/// bekleyen meyveyi joker (Rainbow) meyveyle DEĞİŞTİRİR ve boost'u SİLAHLANDIRIR — tıpkı
+/// Worm'un her meyvenin üstünde nişangâh belirmesi gibi, burada da "silahlanmak bedava".
+/// Charge SADECE gerçekten bırakılınca (commit) harcanıyor:
+///
+///  - <b>Arm</b>   — <see cref="Toggle"/> (armed değilken): dalda bekleyen meyve joker
+///                   meyveyle değişir, önceki tanım <see cref="_previousPendingDef"/>'te saklanır.
+///                   Charge HENÜZ harcanmıyor.
+///  - <b>Cancel</b> — <see cref="Toggle"/> (armed'ken tekrar basmak): joker meyve saklanan
+///                   eski tanımla DEĞİŞTİRİLİR (bkz. <see cref="DropController.CancelForcedPending"/>).
+///                   Hiçbir şey harcanmadı, olduğu gibi geri alınır.
+///  - <b>Commit</b> — oyuncu joker meyveyi gerçekten BIRAKIR. <see cref="GameEvents.OnFruitDropped"/>'i
+///                   dinleyip bunun joker meyve olduğunu görünce charge'ı burada harcıyoruz.
 ///
 /// Joker meyve normal bırakma/fizik/birleşme akışının TAMAMINI paylaşıyor —
 /// <see cref="Fruit.IsRainbow"/> sadece iki yerde farklı davranıyor:
 ///  - <see cref="Fruit.TryRequestMerge"/> / <see cref="MergeHandler"/>: tier eşleşmesini
 ///    atlıyor, ilk dokunduğu meyveyle birleşiyor (üretilen meyve DİĞER tarafın nextTier'ı).
-///  - <see cref="Fruit.TickVisual"/> / <see cref="Fruit.Drop"/>: dalda beklerken pulse
-///    ediyor, bırakılınca o anki boyutta kilitleniyor.
+///  - <see cref="Fruit.TickVisual"/>: arkasındaki hale dönmeye devam ediyor, gövde sabit.
 /// Bu director'ün TEK işi: kullanım hakkı (charge) ve HUD durumu.
 ///
-/// Anlık olduğu için <see cref="IsBusy"/> her zaman <c>false</c> — Worm/Quake gibi bırakma
-/// girdisini KİLİTLEMİYOR (bkz. <c>BoostGate.IsAnyBusy</c> → <c>DropController.Update</c>);
-/// tam tersine oyuncunun aynı anda bırakabiliyor olması lazım.
-///
-/// <see cref="IsArmed"/> ise KISA bir süreliğine <c>true</c> oluyor: HUD butonundaki halka
-/// (<c>BoostButton._armedGlow</c>) tıklamayı GÖRÜNÜR bir geri bildirime çeviriyor — hedefsiz,
-/// anlık bir boost için "hiç yanmayan halka" tıklamanın işe yaramadığı hissini veriyordu.
-/// Bu, <see cref="IsBusy"/>'yi ETKİLEMİYOR: bırakma hâlâ kilitlenmiyor, sadece ikon bir an parlıyor.
+/// <see cref="IsBusy"/> her zaman <c>false</c> — Worm/Quake gibi bırakma girdisini
+/// KİLİTLEMİYOR (bkz. <c>BoostGate.IsAnyBusy</c> → <c>DropController.Update</c>); armed
+/// haldeyken bile oyuncu joker meyveyi normal şekilde bırakabiliyor olması lazım.
 /// </summary>
 [DefaultExecutionOrder(-30)]
 public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
@@ -41,9 +44,8 @@ public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
 
     public bool IsBusy => false;
 
-    /// <summary>Sadece kısa bir "kullanıldı" parlamasının süresi boyunca <c>true</c> — bkz.
-    /// sınıf üstündeki not.</summary>
-    public bool IsArmed => _glowFlashTimer > 0f;
+    /// <summary>Dalda bir joker meyve asılıyken (henüz bırakılmadan/iptal edilmeden) <c>true</c>.</summary>
+    public bool IsArmed => _armed;
 
     public int Charges => _charges;
 
@@ -52,11 +54,12 @@ public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
                           && GameManager.Instance.IsPlaying
                           && !BoostGate.IsAnyBusy;   // başka bir boost oynarken kullanılmaz
 
-    int _charges;
+    int  _charges;
+    bool _armed;
 
-    /// <summary>Time.deltaTime ile azalıyor — pause'da timeScale 0 olduğu için otomatik
-    /// donuyor, Worm/Quake'teki gibi ayrı bir pause kancasına gerek yok.</summary>
-    float _glowFlashTimer;
+    /// <summary>Silahlanma ANINDA dalda bekleyen meyvenin tanımı — Cancel bunu aynen geri
+    /// koyuyor. O an dalda hiçbir şey yoktuysa (nadir <c>_awaitingPending</c> aralığı) null.</summary>
+    FruitDefinition _previousPendingDef;
 
     void Awake()
     {
@@ -69,14 +72,18 @@ public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
     {
         BoostGate.Register(this);
 
-        GameEvents.OnRunStarted += HandleRunStarted;
+        GameEvents.OnRunStarted   += HandleRunStarted;
+        GameEvents.OnStateChanged += HandleStateChanged;
+        GameEvents.OnFruitDropped += HandleFruitDropped;
     }
 
     void OnDisable()
     {
         BoostGate.Unregister(this);
 
-        GameEvents.OnRunStarted -= HandleRunStarted;
+        GameEvents.OnRunStarted   -= HandleRunStarted;
+        GameEvents.OnStateChanged -= HandleStateChanged;
+        GameEvents.OnFruitDropped -= HandleFruitDropped;
     }
 
     void OnDestroy()
@@ -106,45 +113,81 @@ public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
         GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, false, _charges);
     }
 
+    // ----------------------------------------------------------------- olaylar
+
     void HandleRunStarted()
     {
+        _armed = false;
+        _previousPendingDef = null;
+
         _charges = _config != null ? _config.rainbowChargesPerRun : 0;
-        _glowFlashTimer = 0f;
 
         GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, false, _charges);
     }
 
     /// <summary>
-    /// Boost boştayken (parlama sönükken) TEK bir karşılaştırmayla çık — oyunun neredeyse
-    /// tamamında burası (kural 7 ile aynı ekonomi, sadece bu director'de tek satır).
+    /// Menüye dönüldüyse silahlı kalmayı bırak. <see cref="DropController.HandleStateChanged"/>
+    /// zaten dalı kendi başına boşaltıyor — burada sadece KENDİ bayraklarımızı temizliyoruz,
+    /// DropController'a tekrar dokunmuyoruz.
+    ///
+    /// Pause'a BİLEREK dokunulmuyor (Worm/Quake ile aynı fikir): oyuncu joker meyve
+    /// dalda asılıyken pause'a basarsa silahlı hal donarak korunmalı, iptal olmamalı.
     /// </summary>
-    void Update()
+    void HandleStateChanged(GameState s)
     {
-        if (_glowFlashTimer <= 0f) return;
+        if (s != GameState.Menu) return;
 
-        _glowFlashTimer -= Time.deltaTime;
+        _armed = false;
+        _previousPendingDef = null;
+    }
 
-        if (_glowFlashTimer > 0f) return;
+    /// <summary>
+    /// COMMIT anı: oyuncu bir meyve bıraktı. Bıraktığı joker meyveyse (armed'ken) charge'ı
+    /// burada harcıyoruz ve silahı indiriyoruz — iptal penceresi kapandı.
+    /// </summary>
+    void HandleFruitDropped(FruitDefinition dropped)
+    {
+        if (!_armed) return;
+        if (dropped == null || !dropped.isRainbow) return;
 
-        _glowFlashTimer = 0f;
+        _armed = false;
+        _previousPendingDef = null;
+
+        if (_charges > 0) _charges--;
 
         GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, false, _charges);
     }
 
-    /// <summary>HUD butonu. Anlık olduğu için "iptal" diye bir hâl yok — tekrar basmak
-    /// (kullanım varsa) sadece dalda bekleyeni yeni bir joker meyveyle değiştirir.</summary>
+    // ----------------------------------------------------------------- genel API
+
+    /// <summary>HUD butonu. Silahlıyken tekrar basmak Worm'daki gibi İPTAL ediyor.</summary>
     public void Toggle()
     {
+        if (_armed) { Cancel(); return; }
+
         if (!CanUse) return;
 
-        if (_charges > 0) _charges--;
+        _previousPendingDef = _dropController.PendingDefinition;
 
         _dropController.ForceNextPending(_rainbowFruit);
 
-        _glowFlashTimer = _config != null ? _config.rainbowGlowFlashDuration : 0.35f;
+        _armed = true;
 
-        // armed=true: HUD halkası hemen yanıyor, Update yukarıdaki sayaç bitince söndürüyor.
+        // Charge BURADA harcanmıyor — bkz. HandleFruitDropped (commit).
         GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, true, _charges);
+    }
+
+    void Cancel()
+    {
+        if (!_armed) return;
+
+        _armed = false;
+
+        _dropController.CancelForcedPending(_previousPendingDef);
+
+        _previousPendingDef = null;
+
+        GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, false, _charges);
     }
 
     /// <summary>Mağazadan satın alma. Sınırsız moddaysa (-1) dokunma.</summary>
@@ -154,6 +197,6 @@ public class RainbowBoostDirector : MonoBehaviour, IBoostDirector
 
         _charges += amount;
 
-        GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, IsArmed, _charges);
+        GameEvents.RaiseBoostStateChanged(BoostId.Rainbow, _armed, _charges);
     }
 }

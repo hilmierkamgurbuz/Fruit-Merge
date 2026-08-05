@@ -160,11 +160,7 @@ MonoBehaviour:
   quakeRubbleSpawnYOffset: 3
   quakeRubbleSortingOrder: -4
   quakeChargesPerRun: 1
-  rainbowPulseMinScale: 0.8
-  rainbowPulseMaxScale: 1.25
-  rainbowPulseSpeed: 0.6
   rainbowFlipbookFps: 10
-  rainbowGlowFlashDuration: 0.35
   dropIndicatorRainbowRunLength: 2
   rainbowChargesPerRun: 1
   wormsBoostPrice: 20

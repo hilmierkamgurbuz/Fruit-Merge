@@ -59,21 +59,15 @@ public class Fruit : MonoBehaviour
     float _squashIntensity;
     GameConfig _config;
 
-    /// <summary>Rainbow meyvesi dalda beklerken büyüyüp küçülme fazı (radyan). Sadece
-    /// <see cref="IsRainbow"/> ve <c>!IsDropped</c> iken ilerliyor — bkz. <see cref="TickVisual"/>.</summary>
-    float _rainbowPulsePhase;
+    /// <summary>
+    /// Gövde ARTIK dönmüyor/pulse etmiyor — sabit boyut, tek kare (bkz. Initialize'daki
+    /// düz <c>def.sprite</c> ataması). Sadece ARKADAKİ hale (<see cref="_rainbowGlow"/>)
+    /// dönmeye devam ediyor; bu iki alan onun kare sayacı.
+    /// </summary>
+    int _rainbowGlowFrameIndex;
 
-    /// <summary>Son hesaplanan pulse çarpanı. <see cref="Drop"/> bırakma anındaki bu değeri
-    /// <see cref="_targetScale"/>'e gömüp kalıcı hale getiriyor — "bırakıldığı anki boyutta kalsın".</summary>
-    float _rainbowPulseFactor = 1f;
-
-    /// <summary>Rainbow meyvesinin dönen tekerlek animasyonu — <see cref="FruitDefinition.rainbowFrames"/>
-    /// içindeki KAÇINCI kare şu an gösteriliyor. Pulse'ın aksine bırakıldıktan SONRA da devam
-    /// eder — meyve merge'e kadar hep dönüyor.</summary>
-    int _rainbowFrameIndex;
-
-    /// <summary>Bir sonraki kareye kalan süre sayacı (sn).</summary>
-    float _rainbowFrameTimer;
+    /// <summary>Bir sonraki hale karesine kalan süre sayacı (sn).</summary>
+    float _rainbowGlowFrameTimer;
 
     /// <summary>
     /// Fizik adımı sayacı. <c>Time.frameCount</c> KULLANILMIYOR: bir render karesinde
@@ -131,10 +125,8 @@ public class Fruit : MonoBehaviour
         _slowFrames = 0;
         _popTimer = -1f;
         _squashTimer = -1f;
-        _rainbowPulsePhase = 0f;
-        _rainbowPulseFactor = 1f;
-        _rainbowFrameIndex = 0;
-        _rainbowFrameTimer = 0f;
+        _rainbowGlowFrameIndex = 0;
+        _rainbowGlowFrameTimer = 0f;
 
         _rb.simulated = false;
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
@@ -173,10 +165,8 @@ public class Fruit : MonoBehaviour
         _slowFrames = 0;
         _popTimer  = -1f;
         _squashTimer = -1f;
-        _rainbowPulsePhase = 0f;
-        _rainbowPulseFactor = 1f;
-        _rainbowFrameIndex = 0;
-        _rainbowFrameTimer = 0f;
+        _rainbowGlowFrameIndex = 0;
+        _rainbowGlowFrameTimer = 0f;
         _rearmStep = -1;
         _rb.simulated = false;
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
@@ -200,17 +190,6 @@ public class Fruit : MonoBehaviour
     /// </param>
     public void Drop(bool byPlayer)
     {
-        // Rainbow meyvesi dalda pulse ederken büyüyüp küçülüyordu (bkz. TickVisual) —
-        // bırakma anındaki o çarpanı KALICI hale getiriyoruz, sonrasında sabit boyutta
-        // devam etsin diye. _targetScale collider'ı da sürüklediği için (Radius ondan
-        // okunuyor) bu, meyvenin fiziksel/merge boyutunu da bırakıldığı andaki haliyle kilitliyor.
-        if (IsRainbow)
-        {
-            _targetScale *= _rainbowPulseFactor;
-            transform.localScale = Vector3.one * _targetScale;
-            _rainbowPulseFactor = 1f;
-        }
-
         IsDropped = true;
         DropTime = Time.time;
         WasPlayerDropped = byPlayer;
@@ -299,19 +278,15 @@ public class Fruit : MonoBehaviour
     /// </summary>
     public void TickVisual(float dt)
     {
-        // Rainbow meyvesi dalda beklerken (henüz bırakılmadan) büyüyüp küçülüyor —
-        // bkz. Drop() üstündeki not: bırakma anındaki çarpan kalıcı hale geliyor, yani bu
-        // blok sadece !IsDropped iken çalışır, sonrasında bir daha tetiklenmez.
-        bool pulsing = IsRainbow && !IsDropped && _config != null;
+        // Gövde sabit boyutta, tek kare — sadece ARKADAKİ hale hâlâ dönüyor (bkz.
+        // TickRainbowGlow). Meyve bırakıldıktan sonra da merge'e kadar devam eder.
+        bool hasGlowFrames = IsRainbow && _config != null && _rainbowGlow != null
+                             && _rainbowGlow.gameObject.activeSelf
+                             && Definition.rainbowGlowFrames != null && Definition.rainbowGlowFrames.Length > 1;
 
-        // Dönen tekerlek animasyonu — pulse'ın aksine bırakıldıktan SONRA da (merge'e kadar)
-        // devam eder, o yüzden ayrı bir koşul.
-        bool hasFrames = IsRainbow && _config != null
-                         && Definition.rainbowFrames != null && Definition.rainbowFrames.Length > 1;
+        if (_popTimer < 0f && _squashTimer < 0f && !hasGlowFrames) return;
 
-        if (_popTimer < 0f && _squashTimer < 0f && !pulsing && !hasFrames) return;
-
-        if (hasFrames) TickRainbowFrames(dt);
+        if (hasGlowFrames) TickRainbowGlow(dt);
 
         float popScale = 1f;
 
@@ -355,56 +330,31 @@ public class Fruit : MonoBehaviour
             }
         }
 
-        float pulseScale = 1f;
-
-        if (pulsing)
-        {
-            _rainbowPulsePhase += dt * _config.rainbowPulseSpeed * Mathf.PI * 2f;
-
-            float t = (Mathf.Sin(_rainbowPulsePhase) + 1f) * 0.5f;
-
-            pulseScale = Mathf.Lerp(_config.rainbowPulseMinScale, _config.rainbowPulseMaxScale, t);
-
-            // Drop() bırakma anında BUNU okuyup _targetScale'e gömüyor — sonraki karede
-            // pulsing zaten false olacağı için bu satır bir daha yazılmıyor.
-            _rainbowPulseFactor = pulseScale;
-        }
-
-        transform.localScale = new Vector3(_targetScale * popScale * squashX * pulseScale,
-                                            _targetScale * popScale * squashY * pulseScale, 1f);
+        transform.localScale = new Vector3(_targetScale * popScale * squashX,
+                                            _targetScale * popScale * squashY, 1f);
     }
 
     /// <summary>
-    /// Rainbow meyvesinin dönen tekerlek karesini ilerletir — 18°'lik adımlarla önceden
-    /// render edilmiş <see cref="FruitDefinition.rainbowFrames"/> dizisini sırayla oynatır
-    /// (bkz. dosyanın kaynağındaki manifest). Gerçek bir transform döndürmesi DEĞİL: kareler
-    /// zaten dönmüş halde geliyor, burada sadece hangi karenin gösterileceğini seçiyoruz.
-    ///
-    /// Arkadaki hale (<see cref="_rainbowGlow"/>) AYNI index'i kullanıyor — iki dizi de
-    /// aynı 18°'lik kareler olduğu için (bkz. rainbowGlowFrames'in tooltip'i) tek sayaç
-    /// ikisini birden senkron döndürüyor.
+    /// Rainbow meyvesinin ARKASINDAKİ halenin dönen kareyini ilerletir — 18°'lik adımlarla
+    /// önceden render edilmiş <see cref="FruitDefinition.rainbowGlowFrames"/> dizisini
+    /// sırayla oynatır. Gövde artık dönmüyor (sadece <c>rainbowGlowFrames[0]</c>'a denk
+    /// gelen sabit <c>sprite</c>'ıyla duruyor) — SADECE hale bu dizide dönmeye devam ediyor.
     /// </summary>
-    void TickRainbowFrames(float dt)
+    void TickRainbowGlow(float dt)
     {
-        _rainbowFrameTimer += dt;
+        _rainbowGlowFrameTimer += dt;
 
         float frameDuration = 1f / Mathf.Max(0.01f, _config.rainbowFlipbookFps);
 
-        if (_rainbowFrameTimer < frameDuration) return;
+        if (_rainbowGlowFrameTimer < frameDuration) return;
 
-        _rainbowFrameTimer -= frameDuration;
+        _rainbowGlowFrameTimer -= frameDuration;
 
-        _rainbowFrameIndex = (_rainbowFrameIndex + 1) % Definition.rainbowFrames.Length;
+        Sprite[] glowFrames = Definition.rainbowGlowFrames;
 
-        _sr.sprite = Definition.rainbowFrames[_rainbowFrameIndex];
+        _rainbowGlowFrameIndex = (_rainbowGlowFrameIndex + 1) % glowFrames.Length;
 
-        if (_rainbowGlow != null && _rainbowGlow.gameObject.activeSelf)
-        {
-            Sprite[] glowFrames = Definition.rainbowGlowFrames;
-
-            if (glowFrames != null && glowFrames.Length > 0)
-                _rainbowGlow.sprite = glowFrames[_rainbowFrameIndex % glowFrames.Length];
-        }
+        _rainbowGlow.sprite = glowFrames[_rainbowGlowFrameIndex];
     }
 
     /// <summary>

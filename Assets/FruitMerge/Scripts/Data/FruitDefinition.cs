@@ -56,17 +56,12 @@ public class FruitDefinition : ScriptableObject
              "Fruit_Rainbow.asset'te true olmalı")]
     public bool isRainbow;
 
-    [Tooltip("Rainbow boost'un dönen meyve animasyonu — sırayla oynatılan kareler " +
-             "(manifest'e göre 18°'lik adımlarla dönen bir tekerlek). Boş bırakılırsa " +
-             "meyve sabit 'sprite' ile kalır. Sadece isRainbow=true'da okunuyor — bkz. " +
-             "Fruit.TickVisual")]
-    public Sprite[] rainbowFrames;
-
-    [Tooltip("meyvenin ARKASINDA duran yumuşak gökkuşağı halesi — rainbowFrames ile " +
-             "AYNI SIRADA, aynı 18°'lik kareler (index'leri birebir eşleşiyor, bkz. " +
-             "glow_soft/manifest.json). Boş bırakılırsa hale hiç gösterilmez. Fruit " +
-             "prefabındaki RainbowGlow child'ının kendi transform'u meyveyle birlikte " +
-             "ölçekleniyor (parent), yani pulse/pop ile ayrıca senkronlamaya gerek yok")]
+    [Tooltip("meyvenin ARKASINDA duran, dönmeye devam eden yumuşak gökkuşağı halesi — " +
+             "18°'lik kareler (bkz. glow_soft/manifest.json). Boş bırakılırsa hale hiç " +
+             "gösterilmez. Gövdenin KENDİSİ artık dönmüyor (sabit 'sprite'), sadece bu " +
+             "dizi Fruit.TickRainbowGlow ile oynatılıyor. Fruit prefabındaki RainbowGlow " +
+             "child'ının transform'u meyveyle birlikte ölçekleniyor (parent), yani " +
+             "büyüklük senkronu ayrıca gerekmiyor")]
     public Sprite[] rainbowGlowFrames;
     
     [Header("ses")]
