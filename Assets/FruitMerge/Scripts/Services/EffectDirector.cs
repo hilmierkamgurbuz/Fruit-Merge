@@ -42,6 +42,15 @@ public class EffectDirector : MonoBehaviour
              "gravityModifier POZİTİF olmalı — parçalar düşüyor")]
     [SerializeField] ParticleSystem _quakeRubble;
 
+    [Header("Rainbow")]
+    [Range(0f, 1f)]
+    [Tooltip("rainbow boost'un joker meyvesi birleşince çıkan damlaların HSV doygunluğu")]
+    [SerializeField] float _rainbowSaturation = 0.85f;
+
+    [Range(0f, 1f)]
+    [Tooltip("rainbow damlalarının HSV parlaklığı")]
+    [SerializeField] float _rainbowValue = 1f;
+
     [Header("Damla sayısı")]
     [Tooltip("en küçük meyve (kiraz) kaç damla sıçratsın")]
     [SerializeField] int _countMin = 10;
@@ -79,6 +88,16 @@ public class EffectDirector : MonoBehaviour
 
     const int DefaultMaxTier = 10;
 
+    /// <summary>
+    /// <see cref="MergeHandler"/> bir wildcard birleşmede ÖNCE <c>OnRainbowMerged</c>, hemen
+    /// ARDINDAN (aynı çağrı içinde, senkron) <c>OnMerged</c>/<c>OnMaxTierMerged</c> yayınlıyor —
+    /// bkz. MergeHandler.Execute. Bu bayrak o ikinci olayın normal tek-renk PlayJuice'unu
+    /// atlatıyor: aynı noktada aynı anda İKİ patlama (biri düz renk, biri rengarenk) üst üste
+    /// binmesin diye. Set edildiği karede İKİ olay da senkron işlendiği için tek kare içinde
+    /// tüketiliyor, sızıntı riski yok.
+    /// </summary>
+    bool _skipNextJuice;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -96,6 +115,7 @@ public class EffectDirector : MonoBehaviour
 
         GameEvents.OnMerged        += HandleMerged;
         GameEvents.OnMaxTierMerged += HandleMaxTierMerged;
+        GameEvents.OnRainbowMerged += HandleRainbowMerged;
         GameEvents.OnRunStarted    += HandleRunStarted;
     }
 
@@ -105,6 +125,7 @@ public class EffectDirector : MonoBehaviour
 
         GameEvents.OnMerged        -= HandleMerged;
         GameEvents.OnMaxTierMerged -= HandleMaxTierMerged;
+        GameEvents.OnRainbowMerged -= HandleRainbowMerged;
         GameEvents.OnRunStarted    -= HandleRunStarted;
     }
 
@@ -117,12 +138,23 @@ public class EffectDirector : MonoBehaviour
 
     void HandleMerged(FruitDefinition produced, Vector2 position)
     {
+        if (_skipNextJuice) { _skipNextJuice = false; return; }
+
         PlayJuice(position, produced, 1f);
     }
 
     void HandleMaxTierMerged(FruitDefinition def, Vector2 position)
     {
+        if (_skipNextJuice) { _skipNextJuice = false; return; }
+
         PlayJuice(position, def, _maxTierMultiplier);
+    }
+
+    void HandleRainbowMerged(FruitDefinition def, Vector2 position)
+    {
+        _skipNextJuice = true;
+
+        PlayRainbowBurst(position, def, 1f);
     }
 
     // Yeni oyun başlarken havada kalan damla olmasın. OnStateChanged(Playing) yerine
@@ -150,6 +182,30 @@ public class EffectDirector : MonoBehaviour
 
         Emit(_juiceMist, position, tint, radius, t,
              countMultiplier * _mistCountFactor, _mistSizeFactor, _mistSpeedFactor);
+    }
+
+    /// <summary>
+    /// Rainbow boost'un joker meyvesi birleşince çıkan patlama. <see cref="PlayJuice"/>'un
+    /// BİREBİR AYNISI — aynı iki sistem (<see cref="_juiceDroplets"/>/<see cref="_juiceMist"/>),
+    /// aynı şekil/boyut/hız/sayı hesabı. TEK fark: <see cref="Emit"/> helper'ı tüm damlaları
+    /// TEK bir <c>EmitParams.startColor</c> ile aynı anda gönderirken, burası her damlayı
+    /// KENDİ hue'suyla teker teker gönderiyor — böylece tek bir fışkırma rengi yerine
+    /// gerçekten rengarenk bir patlama oluyor.
+    /// </summary>
+    public void PlayRainbowBurst(Vector2 position, FruitDefinition source, float countMultiplier)
+    {
+        if (source == null) return;
+
+        float radius = source.colliderRadius * source.scale;
+
+        if (radius <= 0f) return;
+
+        float t = TierT(source.tier);
+
+        EmitRainbow(_juiceDroplets, position, radius, t, countMultiplier, 1f, 1f);
+
+        EmitRainbow(_juiceMist, position, radius, t,
+                    countMultiplier * _mistCountFactor, _mistSizeFactor, _mistSpeedFactor);
     }
 
     /// <summary>
@@ -297,6 +353,45 @@ public class EffectDirector : MonoBehaviour
         p.startColor = tint;
 
         ps.Emit(p, count);
+    }
+
+    /// <summary>
+    /// <see cref="Emit"/> ile AYNI şekil/boyut/hız kurulumu — tek fark, TEK bir tint yerine
+    /// her damlayı kendi rastgele hue'suyla teker teker <c>Emit(p, 1)</c> ile gönderiyor.
+    /// Sayı/boyut/hız hesabı kasıtlı olarak <see cref="Emit"/> ile BİREBİR aynı satırlar:
+    /// rainbow patlaması normal meyve suyundan görsel olarak ayrışmasın, sadece rengi.
+    /// </summary>
+    void EmitRainbow(ParticleSystem ps, Vector2 position, float radius, float t,
+                     float countMul, float sizeMul, float speedMul)
+    {
+        if (ps == null) return;
+
+        int count = Mathf.RoundToInt(Mathf.Lerp(_countMin, _countMax, t) * countMul);
+
+        if (count <= 0) return;
+
+        var shape = ps.shape;
+        shape.radius = Mathf.Max(0.03f, radius * _emitRadiusFactor);
+
+        var main = ps.main;
+        main.startSpeedMultiplier = Mathf.Lerp(_speedMin, _speedMax, t) * speedMul;
+        main.startSizeMultiplier  = Mathf.Max(0.015f, radius * _sizeFactor * sizeMul);
+
+        var p = new ParticleSystem.EmitParams();
+
+        p.position = position;
+        p.applyShapeToPosition = true;
+
+        for (int i = 0; i < count; i++)
+        {
+            // i/count ile eşit aralıklı hue + küçük bir rastgele sapma: tamamen düzenli
+            // bir gökkuşağı sırası yerine biraz daha organik bir karışım.
+            float hue = (i / (float)count + Random.value * 0.08f) % 1f;
+
+            p.startColor = Color.HSVToRGB(hue, _rainbowSaturation, _rainbowValue);
+
+            ps.Emit(p, 1);
+        }
     }
 
     float TierT(int tier)

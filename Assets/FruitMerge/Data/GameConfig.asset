@@ -160,8 +160,16 @@ MonoBehaviour:
   quakeRubbleSpawnYOffset: 3
   quakeRubbleSortingOrder: -4
   quakeChargesPerRun: 1
+  rainbowPulseMinScale: 0.8
+  rainbowPulseMaxScale: 1.25
+  rainbowPulseSpeed: 0.6
+  rainbowFlipbookFps: 10
+  rainbowGlowFlashDuration: 0.35
+  dropIndicatorRainbowRunLength: 2
+  rainbowChargesPerRun: 1
   wormsBoostPrice: 20
   quakeBoostPrice: 50
+  rainbowBoostPrice: 60
   coinPerStar: 10
   coinPayoutDelay: 0.35
   coinPayoutStagger: 0.09
@@ -170,8 +178,6 @@ MonoBehaviour:
   coinFlySize: 96
   coinFlyEndScale: 0.55
   coinCountSpeed: 45
-  coinPunchScale: 1.08
-  coinPunchDuration: 0.18
   hapticStrength: 1
   hapticGuard: 0.05
   hapticEditorLog: 0

@@ -47,8 +47,27 @@ public class FruitDefinition : ScriptableObject
 
     [Tooltip("zincirin bir sonrakşi halkası")]
     public FruitDefinition nextTier;
-    
+
     public bool countForGameOver = true;
+
+    [Tooltip("joker/wildcard meyve mi (Rainbow boost). true ise Fruit.TryRequestMerge ve " +
+             "MergeHandler tier eşleşmesini atlar: ilk dokunduğu meyveyle (tier'ı ne olursa " +
+             "olsun) birleşir, üretilen meyve DİĞER tarafın nextTier'ı olur. Sadece " +
+             "Fruit_Rainbow.asset'te true olmalı")]
+    public bool isRainbow;
+
+    [Tooltip("Rainbow boost'un dönen meyve animasyonu — sırayla oynatılan kareler " +
+             "(manifest'e göre 18°'lik adımlarla dönen bir tekerlek). Boş bırakılırsa " +
+             "meyve sabit 'sprite' ile kalır. Sadece isRainbow=true'da okunuyor — bkz. " +
+             "Fruit.TickVisual")]
+    public Sprite[] rainbowFrames;
+
+    [Tooltip("meyvenin ARKASINDA duran yumuşak gökkuşağı halesi — rainbowFrames ile " +
+             "AYNI SIRADA, aynı 18°'lik kareler (index'leri birebir eşleşiyor, bkz. " +
+             "glow_soft/manifest.json). Boş bırakılırsa hale hiç gösterilmez. Fruit " +
+             "prefabındaki RainbowGlow child'ının kendi transform'u meyveyle birlikte " +
+             "ölçekleniyor (parent), yani pulse/pop ile ayrıca senkronlamaya gerek yok")]
+    public Sprite[] rainbowGlowFrames;
     
     [Header("ses")]
 

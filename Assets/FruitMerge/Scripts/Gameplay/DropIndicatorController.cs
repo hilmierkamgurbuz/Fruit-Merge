@@ -6,10 +6,24 @@ public class DropIndicatorController : MonoBehaviour
     [SerializeField] GameConfig _config;
     [SerializeField] LayerMask _mask;
 
+    [Tooltip("Rainbow boost'ta göstergedeki noktaların rengini buradan okuyoruz — her " +
+             "tier'ın kendi displayColor'ı, gökkuşağı değil GERÇEK meyve renkleri sırayla")]
+    [SerializeField] FruitDatabase _database;
+
     SpriteRenderer _renderer;
     MaterialPropertyBlock _mpb;
     float _fruitBottomWorldY;
     bool _hasPending;
+
+    /// <summary>SpriteDashFlow.shader'daki MAX_PALETTE_COLORS ile birebir aynı olmalı.</summary>
+    const int MaxPaletteColors = 16;
+
+    /// <summary>
+    /// Meyve renkleri, tier sırasıyla — bir kez kuruluyor (kural 13), her SetPending'de
+    /// yeniden hesaplanmıyor. FruitDatabase oyun boyunca değişmiyor.
+    /// </summary>
+    Vector4[] _paletteCache;
+    int _paletteCount;
 
     /// <summary>
     /// Zeminin üst yüzeyi. <c>Collider2D.bounds</c> native bir çağrı ve zemin hiç hareket
@@ -35,19 +49,67 @@ public class DropIndicatorController : MonoBehaviour
         if (_config == null)
             Debug.LogError("DropIndicatorController: GameConfig bağlı değil, bileşen " +
                            "kapatılıyor.", this);
+
+        BuildPalette();
+    }
+
+    /// <summary>
+    /// FruitDatabase'deki her tier'ın <c>displayColor</c>'ını tier sırasıyla diziye kopyalar.
+    /// Rainbow modunda shader'a GİDECEK olan palet bu — sentetik bir HSV gökkuşağı değil,
+    /// oyundaki GERÇEK meyve renkleri.
+    /// </summary>
+    void BuildPalette()
+    {
+        _paletteCache = new Vector4[MaxPaletteColors];
+        _paletteCount = 0;
+
+        if (_database == null)
+        {
+            Debug.LogWarning("DropIndicatorController: _database bağlı değil — rainbow " +
+                             "modunda gösterge renksiz (beyaz) kalır.", this);
+            return;
+        }
+
+        for (int i = 0; i < _database.fruits.Count && _paletteCount < MaxPaletteColors; i++)
+        {
+            FruitDefinition def = _database.fruits[i];
+
+            if (def == null) continue;
+
+            Color c = def.displayColor;
+
+            _paletteCache[_paletteCount++] = new Vector4(c.r, c.g, c.b, 1f);
+        }
     }
 
     /// <param name="fruitBottomWorldY">
     /// Bekleyen meyvenin alt kenarının dünya y'si. Meyve artık dropY'de merkezlenmiyor —
     /// tepesi dalın sapına değecek şekilde asılıyor, o yüzden yarıçaptan hesaplanamıyor.
     /// </param>
-    public void SetPending(float fruitBottomWorldY, Color tint)
+    /// <param name="isRainbow">
+    /// Bekleyen meyve Rainbow boost'un joker meyvesi mi. <c>true</c>ysa <paramref name="tint"/>
+    /// yok sayılır — şerit <see cref="SpriteDashFlow"/>'un <c>_RainbowMode</c>'una geçip her
+    /// noktayı sırayla GERÇEK bir meyve rengiyle çiziyor (bkz. <see cref="BuildPalette"/> ve
+    /// <c>GameConfig.dropIndicatorRainbowRunLength</c>).
+    /// </param>
+    public void SetPending(float fruitBottomWorldY, Color tint, bool isRainbow = false)
     {
         _fruitBottomWorldY = fruitBottomWorldY;
         _hasPending = true;
 
         _renderer.GetPropertyBlock(_mpb);
         _mpb.SetColor("_Color", tint);
+        _mpb.SetFloat("_RainbowMode", isRainbow ? 1f : 0f);
+
+        if (isRainbow)
+        {
+            if (_config != null)
+                _mpb.SetFloat("_ColorRunLength", _config.dropIndicatorRainbowRunLength);
+
+            _mpb.SetFloat("_PaletteCount", _paletteCount);
+            _mpb.SetVectorArray("_PaletteColors", _paletteCache);
+        }
+
         _renderer.SetPropertyBlock(_mpb);
     }
 
