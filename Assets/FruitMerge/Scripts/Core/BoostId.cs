@@ -11,5 +11,9 @@ public enum BoostId
     Worms = 0,
 
     /// <summary>Deprem — tahtanın tamamını sarsar, hiçbir meyveyi silmez.</summary>
-    Quake = 1
+    Quake = 1,
+
+    /// <summary>Rainbow — bir sonraki bırakılacak meyveyi joker meyveye çevirir. İlk
+    /// dokunduğu meyveyle (tier'ı ne olursa olsun) birleşir.</summary>
+    Rainbow = 2
 }

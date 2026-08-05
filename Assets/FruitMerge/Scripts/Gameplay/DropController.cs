@@ -286,8 +286,36 @@ public class DropController : MonoBehaviour
 
     void PreparePending()
     {
-        FruitDefinition def = _spawnQueue.Next();
+        SpawnPending(_spawnQueue.Next());
+    }
 
+    /// <summary>
+    /// Bekleyen meyveyi ZORLA verilen tanımla değiştirir — <see cref="SpawnQueue"/>'nun torba
+    /// sırasını hiç TÜKETMEDEN. Rainbow boost'un joker meyvesini dala asmak için:
+    /// <see cref="RainbowBoostDirector"/> <c>Toggle</c>'ında bunu çağırıyor.
+    ///
+    /// Mevcut bekleyen (varsa) önce despawn edilir — oyuncunun elinde iki meyve olamaz.
+    /// Torbaya dokunulmadığı için bu meyve bırakıldıktan SONRAKİ bekleyen yine normal
+    /// sırasında doğar (bkz. <see cref="TickPendingSpawn"/> → <see cref="PreparePending"/>),
+    /// yani göstergedeki "sıradaki" hep doğru kalır.
+    ///
+    /// Kasıtlı olarak <c>_awaitingPending</c>'i BEKLEMİYOR: boost butonuna basmak ANINDA
+    /// dalda görünmeli, düşen bir önceki meyvenin uzaklaşmasını beklemek boost'u geç
+    /// hissettirirdi.
+    /// </summary>
+    public void ForceNextPending(FruitDefinition def)
+    {
+        if (def == null) return;
+
+        ClearPending();
+
+        _awaitingPending = false;
+
+        SpawnPending(def);
+    }
+
+    void SpawnPending(FruitDefinition def)
+    {
         _pending = _pool.Spawn(def, Vector2.zero);
 
         _pending.transform.SetParent(_pendingParent, false);
@@ -304,10 +332,13 @@ public class DropController : MonoBehaviour
         // Aynı alan bu dosyanın iki başka yerinde (Drop, HandleStateChanged) null
         // kontrolüyle kullanılıyor — burada da aynı standart.
         if (_dropIndicator != null)
-            _dropIndicator.SetPending(bottomWorldY, _pending.Definition.displayColor);
+            _dropIndicator.SetPending(bottomWorldY, _pending.Definition.displayColor,
+                                      _pending.Definition.isRainbow);
 
         // Next() tüketti, Peek() artık BİR SONRAKİ meyveyi veriyor — yuvaya o yerleşir.
         // Devirden gelen sprite bu anda yuvaya geri sıçrayıp yeni meyveyle belirir.
+        // ForceNextPending çağrısında da doğru: torbaya dokunulmadı, yani Peek() hâlâ
+        // bu joker meyveden SONRA gelecek gerçek meyveyi gösteriyor.
         if (_nextDisplay != null) _nextDisplay.Show(_spawnQueue.Peek());
     }
 

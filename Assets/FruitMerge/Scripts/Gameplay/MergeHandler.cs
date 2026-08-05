@@ -75,7 +75,8 @@ public class MergeHandler : MonoBehaviour
 
             if (req.A.IsMerging || req.B.IsMerging) continue;
 
-            if (req.A.Definition != req.B.Definition) continue;
+            // Rainbow joker meyvesi tier eşleşmesini atlıyor (bkz. Fruit.TryRequestMerge).
+            if (req.A.Definition != req.B.Definition && !req.A.IsRainbow && !req.B.IsRainbow) continue;
 
             Execute(req.A, req.B);
             
@@ -97,9 +98,14 @@ public class MergeHandler : MonoBehaviour
         a.IsMerging = true;
         b.IsMerging = true;
 
-        FruitDefinition current = a.Definition;
+        // Rainbow joker meyvesi kendi tanımının (nextTier'ı yok) değil, DOKUNDUĞU meyvenin
+        // zincirinden ilerler — a rainbow ise gerçek tarafı b, değilse (b rainbow ya da
+        // normal eşleşme) a. İkisi de rainbow'sa (iki joker birbirine değerse) a'da kalır:
+        // current.nextTier zaten null, aşağıdaki max-tier yoluna düşüp sessizce yok olurlar.
+        bool wildcard = a.IsRainbow != b.IsRainbow;
+        FruitDefinition current = a.IsRainbow && !b.IsRainbow ? b.Definition : a.Definition;
         FruitDefinition next = current.nextTier;
-            
+
         Vector2 spawnPos = (Vector2)(a.transform.position + b.transform.position)*0.5f;
 
         _pool.Despawn(a);
@@ -107,6 +113,11 @@ public class MergeHandler : MonoBehaviour
 
         if (next == null)
         {
+            // Rainbow ÖNCE: EffectDirector aynı noktada ÇİFT patlama istemiyor (bkz. o
+            // dosyadaki not) — RaiseRainbowMerged'i dinleyip bir sonraki (bu ikisinin
+            // hemen ardından gelen) RaiseMaxTierMerged'in normal tint'ini atlıyor.
+            if (wildcard) GameEvents.RaiseRainbowMerged(current, spawnPos);
+
             GameEvents.RaiseMaxTierMerged(current, spawnPos);
 
             return;
@@ -124,8 +135,11 @@ public class MergeHandler : MonoBehaviour
         if (spawned.Face != null && _config != null)
             spawned.Face.Express(FaceExpression.Love, _config.faceMergeReactionTime);
 
+        // Rainbow ÖNCE — bkz. yukarıdaki max-tier dalındaki aynı not.
+        if (wildcard) GameEvents.RaiseRainbowMerged(next, spawnPos);
+
         GameEvents.RaiseMerged(next, spawnPos);
-            
+
     }
 
     static long PairKey(Fruit a, Fruit b)

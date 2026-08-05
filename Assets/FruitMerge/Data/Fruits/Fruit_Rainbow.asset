@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3327f8346189b4420ba0ad66ffbdbc2f, type: 3}
+  m_Name: Fruit_Rainbow
+  m_EditorClassIdentifier: 
+  tier: 4
+  displayName: Rainbow
+  sprite: {fileID: -2554161933206395013, guid: e82ab0931b3514da2ba65ad2d5e9d3fb, type: 3}
+  scale: 1
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  displayColor: {r: 1, g: 0.25, b: 0.85, a: 1}
+  mass: 2
+  colliderRadius: 0.459
+  colliderOffset: {x: 0, y: 0.02}
+  score: 10
+  coinReward: 0
+  nextTier: {fileID: 0}
+  countForGameOver: 1
+  isRainbow: 1
+  rainbowFrames:
+  - {fileID: -2554161933206395013, guid: e82ab0931b3514da2ba65ad2d5e9d3fb, type: 3}
+  - {fileID: 2498983120351328399, guid: 54cd6034475764d498443ebfe618f3a9, type: 3}
+  - {fileID: -3562338762014594113, guid: eff0e02c51cab493295d666fe4b3776c, type: 3}
+  - {fileID: 2674041358336023009, guid: 5e8672a02bf7a4287b7baf065ca815da, type: 3}
+  - {fileID: -7888964260510655067, guid: 487583bdbe6bd48f49deaf38d2338415, type: 3}
+  - {fileID: 8521777863705989620, guid: 15cb95164234c47089c633754143c017, type: 3}
+  - {fileID: 7789921585274382295, guid: 42ea6504c8ce346b7b49fe34d563c6d4, type: 3}
+  - {fileID: 3962888907772731761, guid: 89b002cac24df4d899f05cf2b88ec163, type: 3}
+  - {fileID: 5564356293859865690, guid: 471dd4e2288b94d698d5c30225798e74, type: 3}
+  - {fileID: -7747592564639217250, guid: 4a94ee5bec2114829a89dbc0c05c4222, type: 3}
+  - {fileID: 879212516174998806, guid: 0e19380d5957f4f66bcc46ab4612e8c6, type: 3}
+  - {fileID: 7862192156346579737, guid: 51be4733625044f2cb195a8b7a2e4fcf, type: 3}
+  - {fileID: -8248394604428938372, guid: 0a581f6cf8c4846588a25ba80aa094ba, type: 3}
+  - {fileID: 8619539781288047432, guid: 9e390484eb4d8430db4c3ecf5e8e550c, type: 3}
+  - {fileID: 5910419179200094860, guid: fd10960c7f4124cc397d43d800654a4c, type: 3}
+  - {fileID: -8663825211853040994, guid: c36af4bfd73ae4a5db0905e2db8d4220, type: 3}
+  - {fileID: -6864642723903539809, guid: 1b3ef3d1eb00e496fa1f7a7327b80eba, type: 3}
+  - {fileID: 1091140696102709019, guid: 5dd83fcd37b5a42dea105352f8b8647d, type: 3}
+  - {fileID: -5826901208887641686, guid: dc1805e9395cc482f8aa21ccc919109b, type: 3}
+  - {fileID: 7371075670696268190, guid: d61d3ca9f90ab4ebe89c3fc11232a99f, type: 3}
+  rainbowGlowFrames:
+  - {fileID: -8889304434880267629, guid: 838906c290371485b8f8945930bbbc57, type: 3}
+  - {fileID: -2990852781396103037, guid: 54fbf2f286345408d9566f2471a98c5a, type: 3}
+  - {fileID: -2554000023076033164, guid: 7923f0dce80ec4ffea39a81a23ceb496, type: 3}
+  - {fileID: -2749825743327950794, guid: ebbe9491978b2436ea19b071b299631c, type: 3}
+  - {fileID: 2950221016961494157, guid: 328ace85f273a4a9f89a742f2a8c5a6a, type: 3}
+  - {fileID: 3828471617077151307, guid: e2ef54a0c1fa145b4ba4aa6b42951f7c, type: 3}
+  - {fileID: 5830794519459632250, guid: 7526bfb90dee64b169b8d29df1fb233c, type: 3}
+  - {fileID: -5814627345332398828, guid: 0804a5301aeb643d7af10c8b6e39cfcd, type: 3}
+  - {fileID: 3018117497446929864, guid: a35f0226f8f1b45a385fbcb7434c9b77, type: 3}
+  - {fileID: -3058358565095481853, guid: 74ed0a9a8e66040d98e9bfdcab793945, type: 3}
+  - {fileID: -6885227012994342529, guid: aab1f1725be524f8e8c2a32c8882800a, type: 3}
+  - {fileID: -792196319590965821, guid: 0fbd59ccc7aef4014bb32fcd43f2a1b6, type: 3}
+  - {fileID: -1806567802923765769, guid: 4b32e28a38f094c0990aa32f0749cbf1, type: 3}
+  - {fileID: -4516271911451310119, guid: 0edb1815f829e4dc89c0a25fc10216fb, type: 3}
+  - {fileID: -3094726313060552162, guid: 9cd1c8a51a5784a02acd159bd6687322, type: 3}
+  - {fileID: 5781253760796019037, guid: 05fc21a528e70417aaaab909a9a906e0, type: 3}
+  - {fileID: -6629607915446661948, guid: 59e18dd4983c942ceb6c93453be9ac67, type: 3}
+  - {fileID: -5096094430625765072, guid: 670059e606c9143f69d11b9e83fe7854, type: 3}
+  - {fileID: 1377416898300592266, guid: ea856a68303a54952868b5fd50b1ced2, type: 3}
+  - {fileID: -4439669815478137358, guid: 45b6db4c6701b4e90be74225c52d8ce2, type: 3}
+  mergeSfx: {fileID: 8300000, guid: 40766a9d0d66648b4b04f336f08a8392, type: 3}
+  faceSize: 1
+  faceOffset: {x: 0, y: 0}

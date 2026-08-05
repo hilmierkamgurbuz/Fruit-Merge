@@ -8,6 +8,9 @@ Shader "FruitMerge/SpriteDashFlow"
         _DotRadius ("Dot Radius (world units)", Float) = 0.045
         _DotSoftness ("Dot Edge Softness", Float) = 0.015
         _Alpha ("Overall Alpha", Range(0,1)) = 0.4
+
+        [Toggle] _RainbowMode ("Rainbow Mode", Float) = 0
+        _ColorRunLength ("Dots Per Color", Float) = 2
     }
 
     SubShader
@@ -27,6 +30,10 @@ Shader "FruitMerge/SpriteDashFlow"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            // Paletteki en fazla renk sayısı. FruitDatabase 11 tier taşıyor (kiraz..karpuz) —
+            // 16 bolca pay bırakıyor. DropIndicatorController bunu aşan bir sayı göndermez.
+            #define MAX_PALETTE_COLORS 16
 
             struct Attributes
             {
@@ -48,7 +55,27 @@ Shader "FruitMerge/SpriteDashFlow"
                 float _DotRadius;
                 float _DotSoftness;
                 float _Alpha;
+                float _RainbowMode;
+                float _ColorRunLength;
+                float _PaletteCount;
+                float4 _PaletteColors[MAX_PALETTE_COLORS];
             CBUFFER_END
+
+            // Dinamik dizin yerine sabit-boyutlu unroll'lanmış döngü: bazı eski mobil
+            // GPU'larda (GLES) uniform dizilere dinamik indeksleme sorun çıkarabiliyor,
+            // bu yol her platformda güvenli.
+            half4 PaletteAt(int slot)
+            {
+                half4 result = half4(1.0, 1.0, 1.0, 1.0);
+
+                [unroll]
+                for (int k = 0; k < MAX_PALETTE_COLORS; k++)
+                {
+                    if (k == slot) result = _PaletteColors[k];
+                }
+
+                return result;
+            }
 
             Varyings vert(Attributes v)
             {
@@ -70,10 +97,26 @@ Shader "FruitMerge/SpriteDashFlow"
                 float cellOffsetY = (frac(phase) - 0.5) * period;
 
                 float dist = length(float2(i.localPos.x, cellOffsetY));
-                float dot = 1.0 - smoothstep(_DotRadius, _DotRadius + _DotSoftness, dist);
+                float dotMask = 1.0 - smoothstep(_DotRadius, _DotRadius + _DotSoftness, dist);
 
                 half4 col = _Color;
-                col.a *= dot * _Alpha;
+
+                if (_RainbowMode > 0.5)
+                {
+                    // phase'in tam kısmı = kaçıncı nokta hücresi. _FlowSpeed zaten phase'i
+                    // zamanla kaydırıyor, yani renkler de noktalarla AYNI yönde/hızda akıyor —
+                    // ayrı bir zaman hesabı gerekmiyor.
+                    float dotIndex = floor(phase);
+                    float run = max(round(_ColorRunLength), 1.0);
+                    float count = max(round(_PaletteCount), 1.0);
+
+                    float slot = fmod(floor(dotIndex / run), count);
+                    if (slot < 0.0) slot += count;   // fmod negatifte işaret koruyor
+
+                    col.rgb = PaletteAt((int)slot).rgb;
+                }
+
+                col.a *= dotMask * _Alpha;
                 return col;
             }
             ENDHLSL

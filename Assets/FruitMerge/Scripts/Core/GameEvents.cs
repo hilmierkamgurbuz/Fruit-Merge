@@ -7,6 +7,15 @@ public static class GameEvents
     public static event Action<FruitDefinition, Vector2> OnMerged;
     
     public static event Action<FruitDefinition, Vector2> OnMaxTierMerged;
+
+    /// <summary>
+    /// Rainbow boost'un joker meyvesi bir meyveyle birleşti (ya da tepedekiyle buluşup
+    /// yok oldu). <see cref="OnMerged"/> / <see cref="OnMaxTierMerged"/> İLE BİRLİKTE,
+    /// EK olarak yayınlanıyor — skor/combo/ses/yüz tarafı normal birleşme akışından hiç
+    /// haberdar olmuyor, sadece <see cref="EffectDirector"/> bunu dinleyip üstüne
+    /// rengarenk bir patlama bindiriyor.
+    /// </summary>
+    public static event Action<FruitDefinition, Vector2> OnRainbowMerged;
     
     public static event Action<FruitDefinition> OnFruitDropped;
     
@@ -103,6 +112,8 @@ public static class GameEvents
     public static void RaiseMerged(FruitDefinition yeni_uretilen, Vector2 konum) => OnMerged?.Invoke(yeni_uretilen,konum);
 
     public static void RaiseMaxTierMerged(FruitDefinition fruit, Vector2 konum)  => OnMaxTierMerged?.Invoke(fruit, konum);
+
+    public static void RaiseRainbowMerged(FruitDefinition fruit, Vector2 konum) => OnRainbowMerged?.Invoke(fruit, konum);
     
     public static void RaiseFruitDropped(FruitDefinition fruit) => OnFruitDropped?.Invoke(fruit);
     
@@ -151,6 +162,7 @@ public static class GameEvents
     {
         OnMerged = null;
         OnMaxTierMerged = null;
+        OnRainbowMerged = null;
         OnFruitDropped = null;
         OnNextFruitChanged = null;
         OnScoreChanged = null;
